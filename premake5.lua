@@ -66,7 +66,11 @@ project "Hazel"
 		"GLFW",
 		"Glad",
 		"ImGui",
-		"opengl32.lib"
+		"opengl32.lib",
+		"d3dcompiler",
+		"dxguid",
+		"d3d12",
+		"dxgi"
 	}
 
 	filter "system:windows"
