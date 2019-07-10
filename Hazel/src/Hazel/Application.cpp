@@ -13,11 +13,11 @@ namespace Hazel {
 
     Application* Application::s_Instance = nullptr;
 
-    Application::Application()
+    Application::Application(RendererAPI::API api)
     {
         HZ_CORE_ASSERT(!s_Instance, "Application already exists!");
         s_Instance = this;
-
+        SetRendererAPI(api);
         m_Window = std::unique_ptr<Window>(Window::Create());
         m_Window->SetEventCallback(BIND_EVENT_FN(OnEvent));
 
@@ -54,8 +54,6 @@ namespace Hazel {
     {
         while (m_Running)
         {
-            this->OnUpdate();
-
             for (Layer* layer : m_LayerStack)
                 layer->OnUpdate();
 

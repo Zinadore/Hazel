@@ -16,7 +16,7 @@ namespace Hazel {
     class HAZEL_API Application
     {
     public:
-        Application();
+        Application(RendererAPI::API api = RendererAPI::API::None);
         virtual ~Application() = default;
 
         void Run();
@@ -31,8 +31,6 @@ namespace Hazel {
         inline static Application& Get() { return *s_Instance; }
     protected:
         void SetRendererAPI(RendererAPI::API api);
-
-        virtual void OnUpdate() = 0;
 
     private:
         bool OnWindowClose(WindowCloseEvent& e);

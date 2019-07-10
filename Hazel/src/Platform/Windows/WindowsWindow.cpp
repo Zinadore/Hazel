@@ -4,8 +4,11 @@
 #include "Hazel/Events/ApplicationEvent.h"
 #include "Hazel/Events/MouseEvent.h"
 #include "Hazel/Events/KeyEvent.h"
+#include "Hazel/Renderer/Renderer.h"
+#include "Hazel/Renderer/RendererAPI.h"
 
-#include "Platform/OpenGL/OpenGLContext.h"
+
+
 
 namespace Hazel {
 	
@@ -48,10 +51,16 @@ namespace Hazel {
 			s_GLFWInitialized = true;
 		}
 
+        // Disable rendering API if we are not using OpenGL
+        if (Renderer::GetAPI() != RendererAPI::API::OpenGL) 
+        {
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        }
+
 		m_Window = glfwCreateWindow((int)props.Width, (int)props.Height, m_Data.Title.c_str(), nullptr, nullptr);
 
-		m_Context = new OpenGLContext(m_Window);
-		m_Context->Init();
+        m_Context = GraphicsContext::Create(m_Window);
+		m_Context->Init(props.Width, props.Height);
 
 		glfwSetWindowUserPointer(m_Window, &m_Data);
 		SetVSync(true);
