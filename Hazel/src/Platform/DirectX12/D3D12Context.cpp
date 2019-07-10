@@ -5,6 +5,8 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
+#include <string>
+#include "Hazel/Log.h"
 
 bool CheckTearingSupport()
 {
@@ -46,7 +48,11 @@ namespace Hazel {
 
     void D3D12Context::Init(unsigned int width, unsigned int height)
     {
+        m_ClientWidth = width;
+        m_ClientHeight = height;
+
         EnableDebugLayer();
+        m_TearingSupported = CheckTearingSupport();
 
         ::GetWindowRect(m_NativeHandle, &m_WindowRect);
 
@@ -57,6 +63,8 @@ namespace Hazel {
         m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
         m_RTVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_NumFrames);
         m_RTVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        m_SRVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+
 
         UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
 
@@ -64,15 +72,52 @@ namespace Hazel {
         {
             m_CommandAllocators[i] = CreateCommandAllocator(m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
         }
-        m_CommandList = CreateCommandList(m_Device, m_CommandAllocators[g_CurrentBackBufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
+        m_CommandList = CreateCommandList(m_Device, m_CommandAllocators[m_CurrentBackbufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
 
         m_Fence = CreateFence(m_Device);
         m_FenceEvent = CreateEventHandle();
+
+        DXGI_ADAPTER_DESC3 desc;
+        theAdapter->GetDesc3(&desc);
+
+        std::wstring description(desc.Description);
+        std::string str(description.begin(), description.end());
+        HZ_CORE_INFO("DirectX 12 Info:");
+        HZ_CORE_INFO("  Vendor: {0}", desc.VendorId);
+        HZ_CORE_INFO("  Renderer: {0}", str);
+    }
+
+    void D3D12Context::SetVSync(bool enabled)
+    {
+        m_VSyncEnabled = enabled;
     }
 
     void D3D12Context::SwapBuffers()
     {
+        auto backBuffer = m_BackBuffers[m_CurrentBackbufferIndex];
 
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            backBuffer.Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+
+        m_CommandList->ResourceBarrier(1, &barrier);
+
+        ThrowIfFailed(m_CommandList->Close());
+
+        ID3D12CommandList* const commandLists[] = {
+            m_CommandList.Get()
+        };
+        m_CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+
+        UINT syncInterval = m_VSyncEnabled ? 1 : 0;
+        UINT presentFlags = m_TearingSupported && !m_VSyncEnabled ? DXGI_PRESENT_ALLOW_TEARING : 0;
+        ThrowIfFailed(m_SwapChain->Present(syncInterval, presentFlags));
+
+        m_FrameFenceValues[m_CurrentBackbufferIndex] = Signal(m_CommandQueue, m_Fence, m_FenceValue);
+
+        m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+
+        WaitForFenceValue(m_Fence, m_FrameFenceValues[m_CurrentBackbufferIndex], m_FenceEvent);
     }
 
     void D3D12Context::EnableDebugLayer()

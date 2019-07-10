@@ -1,7 +1,10 @@
 #include <hzpch.h>
 
 #include "RendererAPI.h"
+
 #include "Platform/OpenGL/OpenGLRendererAPI.h"
+#include "Platform/DirectX12/D3D12RendererAPI.h"
+
 #include "Hazel/Renderer/RenderCommand.h"
 
 namespace Hazel {
@@ -19,7 +22,7 @@ namespace Hazel {
         {
         case API::None:    HZ_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); break;
         case API::OpenGL:  s_Instance = new OpenGLRendererAPI(); break;
-        case API::D3D12:   HZ_CORE_ASSERT(false, "RendererAPI::D3D12 is currently not supported!");
+        case API::D3D12:   s_Instance = new D3D12RendererAPI(); break;
         default: HZ_CORE_ASSERT(false, "Unknown RendererAPI!"); break;
         }
 

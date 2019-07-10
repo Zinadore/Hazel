@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 
 #include "VertexArray.h"
+#include "GraphicsContext.h"
 
 namespace Hazel {
     class RendererAPI {
@@ -17,13 +18,23 @@ namespace Hazel {
         virtual void SetClearColor(const glm::vec4& color) = 0;
 
         virtual void DrawIndexed(const std::shared_ptr<VertexArray>& vertexArray) = 0;
+        
+        virtual void BeginFrame() = 0;
+        virtual void EndFrame() = 0;
+
         inline static API GetAPI() { return s_API; }
         inline static bool IsInitialized() { return s_Instance != nullptr; }
+        inline static void SetGraphicsContext(GraphicsContext* context) { 
+            HZ_CORE_ASSERT(context, "Grahics contex is null!!");
+            s_Instance->m_Context = context; 
+        }
         static void SelectAPI(API api);
 
     private:
         static API s_API;
         static RendererAPI* s_Instance;
-
+        
+    protected:
+        GraphicsContext* m_Context;
     };
 };

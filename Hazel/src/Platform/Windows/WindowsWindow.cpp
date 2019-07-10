@@ -61,6 +61,7 @@ namespace Hazel {
 
         m_Context = GraphicsContext::Create(m_Window);
 		m_Context->Init(props.Width, props.Height);
+        RendererAPI::SetGraphicsContext(m_Context);
 
 		glfwSetWindowUserPointer(m_Window, &m_Data);
 		SetVSync(true);
@@ -164,16 +165,11 @@ namespace Hazel {
 	void WindowsWindow::OnUpdate()
 	{
 		glfwPollEvents();
-		m_Context->SwapBuffers();
 	}
 
 	void WindowsWindow::SetVSync(bool enabled)
 	{
-		if (enabled)
-			glfwSwapInterval(1);
-		else
-			glfwSwapInterval(0);
-
+        m_Context->SetVSync(enabled);
 		m_Data.VSync = enabled;
 	}
 

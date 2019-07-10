@@ -5,6 +5,8 @@
 #include "Hazel/Core.h"
 #include "Hazel/Events/Event.h"
 
+#include "Hazel/Renderer/GraphicsContext.h"
+
 namespace Hazel {
 
 	struct WindowProps
@@ -24,6 +26,8 @@ namespace Hazel {
 	// Interface representing a desktop system based Window
 	class HAZEL_API Window
 	{
+    protected:
+        GraphicsContext* m_Context;
 	public:
 		using EventCallbackFn = std::function<void(Event&)>;
 
@@ -40,6 +44,8 @@ namespace Hazel {
 		virtual bool IsVSync() const = 0;
 
 		virtual void* GetNativeWindow() const = 0;
+
+        inline GraphicsContext* GetContext() { return m_Context; }
 
 		static Window* Create(const WindowProps& props = WindowProps());
 	};

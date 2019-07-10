@@ -23,8 +23,10 @@ namespace Hazel {
         D3D12Context(GLFWwindow* windowHandle);
 
         virtual void Init(unsigned int width, unsigned int height) override;
+        virtual void SetVSync(bool enabled) override;
         virtual void SwapBuffers() override;
-    private:
+
+    public:
         GLFWwindow* m_WindowHandle;
         HWND m_NativeHandle;
         RECT m_WindowRect;
@@ -42,20 +44,31 @@ namespace Hazel {
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator>      m_CommandAllocators[NUM_FRAMES];
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        m_RTVDescriptorHeap;
         Microsoft::WRL::ComPtr<ID3D12Fence>                 m_Fence;
+        Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        m_SRVDescriptorHeap;
+        // Sync
         HANDLE                                              m_FenceEvent;
+        uint64_t m_FenceValue = 0;
+        uint64_t m_FrameFenceValues[NUM_FRAMES] = {};
 
         void EnableDebugLayer();
 
         Microsoft::WRL::ComPtr<IDXGIAdapter4> GetAdapter(bool useWarp);
+        
         Microsoft::WRL::ComPtr<ID3D12Device2> CreateDevice(Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter);
+        
         Microsoft::WRL::ComPtr<ID3D12CommandQueue> CreateCommandQueue(Microsoft::WRL::ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type);
+        
         Microsoft::WRL::ComPtr<IDXGISwapChain4> CreateSwapChain(HWND hWnd, Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue,
             uint32_t width, uint32_t height, uint32_t bufferCount);
+        
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(Microsoft::WRL::ComPtr<ID3D12Device2> device,
             D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors);
+
         void UpdateRenderTargetViews(Microsoft::WRL::ComPtr<ID3D12Device2> device,
             Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain, Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap);
+        
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CreateCommandAllocator(Microsoft::WRL::ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type);
+        
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> CreateCommandList(Microsoft::WRL::ComPtr<ID3D12Device2> device,
             Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator, D3D12_COMMAND_LIST_TYPE type);
 
@@ -70,6 +83,5 @@ namespace Hazel {
 
         void Flush(Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue, Microsoft::WRL::ComPtr<ID3D12Fence> fence,
             uint64_t& fenceValue, HANDLE fenceEvent);
-        
     };
 }
