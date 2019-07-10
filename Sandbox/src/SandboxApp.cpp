@@ -10,53 +10,14 @@
 #include "Hazel/Renderer/RenderCommand.h"
 #include "Hazel/Renderer/OrthographicCamera.h"
 
-using namespace Hazel;
 
 class ExampleLayer : public Hazel::Layer
 {
 public:
     ExampleLayer()
-        : Layer("Example")
+        : Layer("Example"), m_Camera(-1.6f, 1.6f, -0.9f, 0.9f)
     {
-    }
-
-    void OnUpdate() override
-    {
-        if (Hazel::Input::IsKeyPressed(HZ_KEY_TAB))
-            HZ_TRACE("Tab key is pressed (poll)!");
-    }
-
-    virtual void OnImGuiRender() override
-    {
-        ImGui::Begin("Test");
-        ImGui::Text("Hello World");
-        ImGui::End();
-    }
-
-    void OnEvent(Hazel::Event& event) override
-    {
-        if (event.GetEventType() == Hazel::EventType::KeyPressed)
-        {
-            Hazel::KeyPressedEvent& e = (Hazel::KeyPressedEvent&)event;
-            if (e.GetKeyCode() == HZ_KEY_TAB)
-                HZ_TRACE("Tab key is pressed (event)!");
-            HZ_TRACE("{0}", (char)e.GetKeyCode());
-        }
-    }
-
-};
-
-class Sandbox : public Hazel::Application
-{
-public:
-    Sandbox()
-        :m_Camera(-1.6f, 1.6f, -0.9f, 0.9f)
-    {
-        Application::SetRendererAPI(RendererAPI::API::OpenGL);
-
-        PushLayer(new ExampleLayer());
-
-        m_VertexArray.reset(VertexArray::Create());
+        m_VertexArray.reset(Hazel::VertexArray::Create());
 
         float vertices[3 * 7] = {
             -0.5f, -0.5f, 0.0f, 0.8f, 0.2f, 0.8f, 1.0f,
@@ -64,21 +25,21 @@ public:
              0.0f,  0.5f, 0.0f, 0.8f, 0.8f, 0.2f, 1.0f
         };
 
-        std::shared_ptr<VertexBuffer> vertexBuffer;
-        vertexBuffer.reset(VertexBuffer::Create(vertices, sizeof(vertices)));
-        BufferLayout layout = {
-            { ShaderDataType::Float3, "a_Position" },
-            { ShaderDataType::Float4, "a_Color" }
+        std::shared_ptr<Hazel::VertexBuffer> vertexBuffer;
+        vertexBuffer.reset(Hazel::VertexBuffer::Create(vertices, sizeof(vertices)));
+        Hazel::BufferLayout layout = {
+            { Hazel::ShaderDataType::Float3, "a_Position" },
+            { Hazel::ShaderDataType::Float4, "a_Color" }
         };
         vertexBuffer->SetLayout(layout);
         m_VertexArray->AddVertexBuffer(vertexBuffer);
 
         uint32_t indices[3] = { 0, 1, 2 };
-        std::shared_ptr<IndexBuffer> indexBuffer;
-        indexBuffer.reset(IndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t)));
+        std::shared_ptr<Hazel::IndexBuffer> indexBuffer;
+        indexBuffer.reset(Hazel::IndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t)));
         m_VertexArray->SetIndexBuffer(indexBuffer);
 
-        m_SquareVA.reset(VertexArray::Create());
+        m_SquareVA.reset(Hazel::VertexArray::Create());
 
         float squareVertices[3 * 4] = {
             -0.75f, -0.75f, 0.0f,
@@ -87,16 +48,16 @@ public:
             -0.75f,  0.75f, 0.0f
         };
 
-        std::shared_ptr<VertexBuffer> squareVB;
-        squareVB.reset(VertexBuffer::Create(squareVertices, sizeof(squareVertices)));
+        std::shared_ptr<Hazel::VertexBuffer> squareVB;
+        squareVB.reset(Hazel::VertexBuffer::Create(squareVertices, sizeof(squareVertices)));
         squareVB->SetLayout({
-            { ShaderDataType::Float3, "a_Position" }
+            { Hazel::ShaderDataType::Float3, "a_Position" }
             });
         m_SquareVA->AddVertexBuffer(squareVB);
 
         uint32_t squareIndices[6] = { 0, 1, 2, 2, 3, 0 };
-        std::shared_ptr<IndexBuffer> squareIB;
-        squareIB.reset(IndexBuffer::Create(squareIndices, sizeof(squareIndices) / sizeof(uint32_t)));
+        std::shared_ptr<Hazel::IndexBuffer> squareIB;
+        squareIB.reset(Hazel::IndexBuffer::Create(squareIndices, sizeof(squareIndices) / sizeof(uint32_t)));
         m_SquareVA->SetIndexBuffer(squareIB);
 
         std::string vertexSrc = R"(
@@ -104,6 +65,8 @@ public:
 			
 			layout(location = 0) in vec3 a_Position;
 			layout(location = 1) in vec4 a_Color;
+            
+            uniform mat4 u_ViewProjection;
 
 			out vec3 v_Position;
 			out vec4 v_Color;
@@ -131,14 +94,16 @@ public:
 			}
 		)";
 
-        m_Shader.reset(new Shader(vertexSrc, fragmentSrc));
+        m_Shader.reset(new Hazel::Shader(vertexSrc, fragmentSrc));
 
         std::string blueShaderVertexSrc = R"(
 			#version 330 core
 			
 			layout(location = 0) in vec3 a_Position;
 
-			out vec3 v_Position;
+            uniform mat4 u_ViewProjection;
+			
+            out vec3 v_Position;
 
 			void main()
 			{
@@ -160,7 +125,56 @@ public:
 			}
 		)";
 
-        m_BlueShader.reset(new Shader(blueShaderVertexSrc, blueShaderFragmentSrc));
+        m_BlueShader.reset(new Hazel::Shader(blueShaderVertexSrc, blueShaderFragmentSrc));
+    }
+
+    void OnUpdate() override
+    {
+        Hazel::RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
+        Hazel::RenderCommand::Clear();
+
+        m_Camera.SetPosition({ 0.5f, 0.5f, 0.0f });
+        m_Camera.SetRotation(45.0f);
+
+        Hazel::Renderer::BeginScene(m_Camera);
+
+        m_BlueShader->Bind();
+        Hazel::Renderer::Submit(m_BlueShader, m_SquareVA);
+
+        m_Shader->Bind();
+        Hazel::Renderer::Submit(m_Shader, m_VertexArray);
+
+        Hazel::Renderer::EndScene();
+    }
+
+    virtual void OnImGuiRender() override
+    {
+        
+    }
+
+    void OnEvent(Hazel::Event& event) override
+    {
+
+    }
+
+private:
+    std::shared_ptr<Hazel::Shader> m_Shader;
+    std::shared_ptr<Hazel::VertexArray> m_VertexArray;
+
+    std::shared_ptr<Hazel::Shader> m_BlueShader;
+    std::shared_ptr<Hazel::VertexArray> m_SquareVA;
+
+    Hazel::OrthographicCamera m_Camera;
+
+};
+
+class Sandbox : public Hazel::Application
+{
+public:
+    Sandbox()
+        :Application(Hazel::RendererAPI::API::D3D12)
+    {
+        PushLayer(new ExampleLayer());
     }
 
     ~Sandbox()
@@ -170,31 +184,8 @@ public:
 
     void Sandbox::OnUpdate()
     {
-        RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
-        RenderCommand::Clear();
 
-        m_Camera.SetPosition({ 0.5f, 0.5f, 0.0f });
-        m_Camera.SetRotation(45.0f);
-
-        Renderer::BeginScene(m_Camera);
-
-        m_BlueShader->Bind();
-        Renderer::Submit(m_BlueShader, m_SquareVA);
-
-        m_Shader->Bind();
-        Renderer::Submit(m_Shader, m_VertexArray);
-
-        Renderer::EndScene();
     }
-
-private:
-    std::shared_ptr<Shader> m_Shader;
-    std::shared_ptr<VertexArray> m_VertexArray;
-
-    std::shared_ptr<Shader> m_BlueShader;
-    std::shared_ptr<VertexArray> m_SquareVA;
-
-    OrthographicCamera m_Camera;
 
 };
 
