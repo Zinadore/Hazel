@@ -17,7 +17,7 @@ public:
     ExampleLayer()
         : Layer("Example"), m_Camera(-1.6f, 1.6f, -0.9f, 0.9f)
     {
-        m_VertexArray.reset(Hazel::VertexArray::Create());
+       /* m_VertexArray.reset(Hazel::VertexArray::Create());
 
         float vertices[3 * 7] = {
             -0.5f, -0.5f, 0.0f, 0.8f, 0.2f, 0.8f, 1.0f,
@@ -125,26 +125,26 @@ public:
 			}
 		)";
 
-        m_BlueShader.reset(new Hazel::Shader(blueShaderVertexSrc, blueShaderFragmentSrc));
+        m_BlueShader.reset(new Hazel::Shader(blueShaderVertexSrc, blueShaderFragmentSrc));*/
     }
 
     void OnUpdate() override
     {
-        Hazel::RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
+        Hazel::RenderCommand::SetClearColor({ 1.0f, 0.1f, 1.0f, 1.0f });
         Hazel::RenderCommand::Clear();
 
-        m_Camera.SetPosition({ 0.5f, 0.5f, 0.0f });
-        m_Camera.SetRotation(45.0f);
+        //m_Camera.SetPosition({ 0.5f, 0.5f, 0.0f });
+        //m_Camera.SetRotation(45.0f);
 
-        Hazel::Renderer::BeginScene(m_Camera);
+        //Hazel::Renderer::BeginScene(m_Camera);
 
-        m_BlueShader->Bind();
-        Hazel::Renderer::Submit(m_BlueShader, m_SquareVA);
+        //m_BlueShader->Bind();
+        //Hazel::Renderer::Submit(m_BlueShader, m_SquareVA);
 
-        m_Shader->Bind();
-        Hazel::Renderer::Submit(m_Shader, m_VertexArray);
+        //m_Shader->Bind();
+        //Hazel::Renderer::Submit(m_Shader, m_VertexArray);
 
-        Hazel::Renderer::EndScene();
+        //Hazel::Renderer::EndScene();
     }
 
     virtual void OnImGuiRender() override

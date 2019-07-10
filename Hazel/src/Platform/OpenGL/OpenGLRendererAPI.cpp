@@ -2,7 +2,8 @@
 #include "OpenGLRendererAPI.h"
 
 #include <glad/glad.h>
-
+#include <GLFW/glfw3.h>
+#include "Hazel/Application.h"
 namespace Hazel {
 
 	void OpenGLRendererAPI::SetClearColor(const glm::vec4& color)
@@ -19,5 +20,14 @@ namespace Hazel {
 	{
 		glDrawElements(GL_TRIANGLES, vertexArray->GetIndexBuffer()->GetCount(), GL_UNSIGNED_INT, nullptr);
 	}
+
+    void OpenGLRendererAPI::BeginFrame()
+    {
+    }
+
+    void OpenGLRendererAPI::EndFrame()
+    {
+        glfwSwapBuffers((GLFWwindow*)Application::Get().GetWindow().GetNativeWindow());
+    }
 
 }

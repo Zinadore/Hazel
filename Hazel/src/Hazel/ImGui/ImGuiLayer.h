@@ -5,6 +5,8 @@
 #include "Hazel/Events/ApplicationEvent.h"
 #include "Hazel/Events/KeyEvent.h"
 #include "Hazel/Events/MouseEvent.h"
+#include "Hazel/ImGui/ImGuiImplementation.h"
+
 
 namespace Hazel {
 
@@ -22,6 +24,7 @@ namespace Hazel {
 		void End();
 	private:
 		float m_Time = 0.0f;
+        ImGuiImplementation* m_Implementation;
 	};
 
 }

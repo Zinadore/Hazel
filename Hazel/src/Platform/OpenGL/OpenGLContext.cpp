@@ -31,4 +31,13 @@ namespace Hazel {
 		glfwSwapBuffers(m_WindowHandle);
 	}
 
+    void OpenGLContext::SetVSync(bool enabled)
+    {
+        m_VSyncEnabled = enabled;
+        if (enabled)
+            glfwSwapInterval(1);
+        else
+            glfwSwapInterval(0);
+    }
+
 }
