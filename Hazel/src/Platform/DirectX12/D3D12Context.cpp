@@ -63,7 +63,7 @@ namespace Hazel {
         m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
         m_RTVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_NumFrames);
         m_RTVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        m_SRVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+        m_SRVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
 
         UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
@@ -279,13 +279,14 @@ namespace Hazel {
     }
 
     ComPtr<ID3D12DescriptorHeap> D3D12Context::CreateDescriptorHeap(ComPtr<ID3D12Device2> device,
-        D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors)
+        D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
     {
         ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 
         D3D12_DESCRIPTOR_HEAP_DESC desc = {};
         desc.NumDescriptors = numDescriptors;
         desc.Type = type;
+        desc.Flags = flags;
 
         ThrowIfFailed(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
 
@@ -370,5 +371,27 @@ namespace Hazel {
     {
         uint64_t fenceValueForSignal = Signal(commandQueue, fence, fenceValue);
         WaitForFenceValue(fence, fenceValueForSignal, fenceEvent);
+    }
+    void D3D12Context::CleanupRenderTargetViews()
+    {
+        Flush(m_CommandQueue, m_Fence, m_FenceValue, m_FenceEvent);
+
+        for (UINT i = 0; i < m_NumFrames; i++)
+        {
+            if (m_BackBuffers[i]) {
+                m_BackBuffers[i]->Release();
+                m_BackBuffers[i] = nullptr;
+                m_FrameFenceValues[i] = m_FrameFenceValues[m_CurrentBackbufferIndex];
+            }
+        }
+    }
+    void D3D12Context::ResizeSwapChain(UINT width, UINT height)
+    {
+        DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+        ThrowIfFailed(m_SwapChain->GetDesc(&swapChainDesc));
+        ThrowIfFailed(m_SwapChain->ResizeBuffers(m_NumFrames, width, height,
+            swapChainDesc.BufferDesc.Format, swapChainDesc.Flags));
+
+        m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
     }
 }

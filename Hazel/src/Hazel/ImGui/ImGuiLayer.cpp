@@ -24,8 +24,13 @@ namespace Hazel {
 		ImGuiIO& io = ImGui::GetIO(); (void)io;
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+		//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+        
+        // Viewports are broken on D3D12 for now
+        if (RendererAPI::GetAPI() != RendererAPI::API::D3D12) 
+        {
+		    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+        }
 		//io.ConfigFlags |= ImGuiConfigFlags_ViewportsNoTaskBarIcons;
 		//io.ConfigFlags |= ImGuiConfigFlags_ViewportsNoMerge;
 
@@ -71,7 +76,7 @@ namespace Hazel {
 
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
-            //m_Implementation->UpdateDockedWindows();
+            m_Implementation->UpdateDockedWindows();
 		}
 	}
 

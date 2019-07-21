@@ -62,7 +62,7 @@ namespace Hazel {
             uint32_t width, uint32_t height, uint32_t bufferCount);
         
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(Microsoft::WRL::ComPtr<ID3D12Device2> device,
-            D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors);
+            D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
         void UpdateRenderTargetViews(Microsoft::WRL::ComPtr<ID3D12Device2> device,
             Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain, Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap);
@@ -83,5 +83,9 @@ namespace Hazel {
 
         void Flush(Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue, Microsoft::WRL::ComPtr<ID3D12Fence> fence,
             uint64_t& fenceValue, HANDLE fenceEvent);
+
+        void CleanupRenderTargetViews();
+
+        void ResizeSwapChain(UINT width, UINT height);
     };
 }

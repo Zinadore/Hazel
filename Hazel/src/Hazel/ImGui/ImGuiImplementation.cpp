@@ -15,7 +15,7 @@ namespace Hazel {
         {
         case RendererAPI::API::None:    HZ_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
         case RendererAPI::API::OpenGL:  return new OpenGLImGuiImplementation();
-        case RendererAPI::API::D3D12:   return new D3D12ImGuiImplementation();
+        case RendererAPI::API::D3D12:   return D3D12ImGuiImplementation::Create();
         }
 
         HZ_CORE_ASSERT(false, "Unknown RendererAPI!");
