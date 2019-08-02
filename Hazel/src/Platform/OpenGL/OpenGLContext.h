@@ -12,7 +12,7 @@ namespace Hazel {
 	public:
 		OpenGLContext(Window* window);
 
-		virtual void Init(unsigned int width, unsigned int height) override;
+		virtual void Init() override;
 		virtual void SwapBuffers() override;
         virtual void SetVSync(bool enabled) override;
 	private:

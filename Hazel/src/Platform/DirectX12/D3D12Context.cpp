@@ -45,10 +45,10 @@ namespace Hazel {
         HZ_CORE_ASSERT(m_NativeHandle, "HWND is null!");
     }
 
-    void D3D12Context::Init(unsigned int width, unsigned int height)
-    {
-        m_ClientWidth = width;
-        m_ClientHeight = height;
+    void D3D12Context::Init()
+    {   
+        auto width = m_Window->GetWidth();
+        auto height = m_Window->GetHeight();
 
         EnableDebugLayer();
         m_TearingSupported = CheckTearingSupport();
@@ -321,8 +321,8 @@ namespace Hazel {
 
         desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
         desc.Alignment = 0;
-        desc.Width = m_ClientWidth;
-        desc.Height = m_ClientHeight;
+        desc.Width = m_Window->GetWidth();
+        desc.Height = m_Window->GetHeight();
         desc.DepthOrArraySize = 1;
         desc.MipLevels = 1;
         desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;

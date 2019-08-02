@@ -21,7 +21,7 @@ namespace Hazel {
     public:
         D3D12Context(Window* window);
 
-        virtual void Init(unsigned int width, unsigned int height) override;
+        virtual void Init() override;
         virtual void SetVSync(bool enabled) override;
         virtual void SwapBuffers() override;
 
