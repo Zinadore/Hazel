@@ -67,6 +67,14 @@ namespace Hazel {
 
         UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
         CreateDepthStencil();
+        
+        m_Viewport.TopLeftX = 0.0f;
+        m_Viewport.TopLeftY = 0.0f;
+        m_Viewport.Width = static_cast<float>(width);
+        m_Viewport.Height = static_cast<float>(height);
+        m_Viewport.MinDepth = 0.0f;
+        m_Viewport.MaxDepth = 1.0f;
+
 
         for (int i = 0; i < m_NumFrames; ++i)
         {

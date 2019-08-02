@@ -24,7 +24,10 @@ namespace Hazel {
         D3D12_CPU_DESCRIPTOR_HANDLE rtv = ctx->CurrentBackBufferView();
 
         ctx->m_CommandList->ClearRenderTargetView(rtv, glm::value_ptr(m_ClearColor), 0, nullptr);
-        ctx->m_CommandList->OMSetRenderTargets(1, &rtv, FALSE, NULL);
+        ctx->m_CommandList->ClearDepthStencilView(ctx->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+        
+        ctx->m_CommandList->OMSetRenderTargets(1, &rtv, true, &ctx->DepthStencilView());
+
         ctx->m_CommandList->SetDescriptorHeaps(1, ctx->m_SRVDescriptorHeap.GetAddressOf());
     }
 
@@ -50,7 +53,7 @@ namespace Hazel {
             D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
         ctx->m_CommandList->ResourceBarrier(1, &barrier);
-
+        ctx->m_CommandList->RSSetViewports(1, &ctx->m_Viewport);
     }
 
     void D3D12RendererAPI::EndFrame()

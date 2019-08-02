@@ -28,6 +28,7 @@ namespace Hazel {
     public:
         HWND m_NativeHandle;
         RECT m_WindowRect;
+        D3D12_VIEWPORT m_Viewport;
         uint8_t m_NumFrames;
         bool m_IsTearingEnabled;
         UINT m_RTVDescriptorSize;
@@ -45,6 +46,7 @@ namespace Hazel {
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        m_SRVDescriptorHeap;
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        m_DSVDescriptorHeap;
         Microsoft::WRL::ComPtr<ID3D12Fence>                 m_Fence;
+
         // Sync
         HANDLE      m_FenceEvent;
         uint64_t    m_FenceValue = 0;
