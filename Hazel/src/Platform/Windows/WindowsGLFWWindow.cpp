@@ -28,14 +28,15 @@ namespace Hazel {
         switch (Renderer::GetAPI())
         {
         case RendererAPI::API::None:    HZ_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
+        case RendererAPI::API::D3D12:
         case RendererAPI::API::OpenGL:  return new WindowsGLFWWindow(props);
-        case RendererAPI::API::D3D12: {
-#ifdef HZ_PLATFORM_WINDOWS
-            return new Win32Window(props);
-#else
-            HZ_CORE_ASSERT(false, "Using D3D12 on a non-windows build is not supported!");
-#endif
-        }
+//        case RendererAPI::API::D3D12: {
+//#ifdef HZ_PLATFORM_WINDOWS
+//            return new Win32Window(props);
+//#else
+//            HZ_CORE_ASSERT(false, "Using D3D12 on a non-windows build is not supported!");
+//#endif
+//        }
         }
 
         HZ_CORE_ASSERT(false, "Unknown RendererAPI!");
@@ -70,16 +71,16 @@ namespace Hazel {
 			s_GLFWInitialized = true;
 		}
 
-        //// Disable rendering API if we are not using OpenGL
-        //if (Renderer::GetAPI() != RendererAPI::API::OpenGL) 
-        //{
-        //    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        //}
+        // Disable rendering API if we are not using OpenGL
+        if (Renderer::GetAPI() != RendererAPI::API::OpenGL) 
+        {
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        }
 
 		m_Window = glfwCreateWindow((int)props.Width, (int)props.Height, m_Data.Title.c_str(), nullptr, nullptr);
 
         m_Context = GraphicsContext::Create(this);
-		m_Context->Init(props.Width, props.Height);
+		m_Context->Init();
         RendererAPI::SetGraphicsContext(m_Context);
 
 		glfwSetWindowUserPointer(m_Window, &m_Data);

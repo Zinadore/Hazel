@@ -18,6 +18,8 @@ namespace Hazel {
         virtual void BeginFrame() override;
         virtual void EndFrame() override;
 
+    protected:
+        virtual void OnChangeContext() override;
     private:
         glm::vec4 m_ClearColor;
         D3D12Context* ctx;

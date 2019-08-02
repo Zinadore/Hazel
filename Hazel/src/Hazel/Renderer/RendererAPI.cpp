@@ -15,6 +15,7 @@ namespace Hazel {
     {
         HZ_CORE_ASSERT(context, "Grahics contex is null!!");
         s_Instance->m_Context = context;
+        s_Instance->OnChangeContext();
     }
 
     void RendererAPI::SelectAPI(API api)

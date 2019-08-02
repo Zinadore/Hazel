@@ -4,8 +4,6 @@
 #if defined(HZ_PLATFORM_WINDOWS)
 #include <windows.h>
 namespace Hazel {
-
-
     class Win32Window : public Window
     {
     public:
@@ -30,6 +28,7 @@ namespace Hazel {
         virtual void Init(const WindowProps& props);
         virtual void Shutdown();
 
+        void OnResize();
 
     private:
         HWND m_Window;

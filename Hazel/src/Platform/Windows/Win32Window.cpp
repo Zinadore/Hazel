@@ -129,6 +129,9 @@ namespace Hazel {
             Shutdown();
             return 0;
         }
+        case WM_QUIT: {
+            return 0;
+        }
         case WM_ENTERSIZEMOVE: {
             resizing = true;
             return 0;
@@ -146,6 +149,7 @@ namespace Hazel {
         case WM_LBUTTONDOWN:
         case WM_MBUTTONDOWN:
         case WM_RBUTTONDOWN:
+            break;
         }
 
         return ::DefWindowProc(hWnd, msg, wParam, lParam);
@@ -166,7 +170,7 @@ namespace Hazel {
         ::UpdateWindow(m_Window);
 
         m_Context = GraphicsContext::Create(this);
-        m_Context->Init(props.Width, props.Height);
+        m_Context->Init();
         RendererAPI::SetGraphicsContext(m_Context);
 
         ::SetWindowLongPtr(m_Window, GWLP_USERDATA, (LONG_PTR)this);
@@ -176,5 +180,8 @@ namespace Hazel {
     void Win32Window::Shutdown()
     {
         ::PostQuitMessage(0);
+    }
+    void Win32Window::OnResize()
+    {
     }
 }

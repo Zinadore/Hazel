@@ -33,4 +33,8 @@ namespace Hazel {
         glfwSwapBuffers((GLFWwindow*)Application::Get().GetWindow().GetNativeWindow());
     }
 
+    void OpenGLRendererAPI::OnChangeContext()
+    {
+    }
+
 }

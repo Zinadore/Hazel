@@ -11,8 +11,7 @@ namespace Hazel {
     D3D12RendererAPI::D3D12RendererAPI()
         : m_ClearColor(glm::vec4(0.0f))
     {
-        ctx = dynamic_cast<D3D12Context*>(m_Context);
-        HZ_CORE_ASSERT(ctx, "Context was of wrong type");
+        
     }
     void D3D12RendererAPI::SetClearColor(const glm::vec4& color)
     {
@@ -59,6 +58,12 @@ namespace Hazel {
     void D3D12RendererAPI::EndFrame()
     {
         m_Context->SwapBuffers();
+    }
+
+    void D3D12RendererAPI::OnChangeContext()
+    {
+        ctx = dynamic_cast<D3D12Context*>(m_Context);
+        HZ_CORE_ASSERT(ctx, "Context was of wrong type");
     }
 
 }

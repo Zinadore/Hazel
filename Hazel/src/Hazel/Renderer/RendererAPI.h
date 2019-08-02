@@ -27,6 +27,9 @@ namespace Hazel {
         static void SetGraphicsContext(GraphicsContext* context);
         static void SelectAPI(API api);
 
+    protected:
+        virtual void OnChangeContext() = 0;
+
     private:
         static API s_API;
         static RendererAPI* s_Instance;
