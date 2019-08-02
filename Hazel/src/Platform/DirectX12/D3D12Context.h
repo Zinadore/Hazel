@@ -38,6 +38,7 @@ namespace Hazel {
         Microsoft::WRL::ComPtr<ID3D12CommandQueue>          m_CommandQueue;
         Microsoft::WRL::ComPtr<IDXGISwapChain4>             m_SwapChain;
         Microsoft::WRL::ComPtr<ID3D12Resource>              m_BackBuffers[NUM_FRAMES];
+        Microsoft::WRL::ComPtr<ID3D12Resource>              m_DepthStencilBuffer;
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>   m_CommandList;
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator>      m_CommandAllocators[NUM_FRAMES];
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        m_RTVDescriptorHeap;
@@ -66,7 +67,9 @@ namespace Hazel {
         void UpdateRenderTargetViews(Microsoft::WRL::ComPtr<ID3D12Device2> device,
             Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain, Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap);
         
-        Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CreateCommandAllocator(Microsoft::WRL::ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type);
+        void CreateDepthStencil();
+        
+            Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CreateCommandAllocator(Microsoft::WRL::ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type);
         
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> CreateCommandList(Microsoft::WRL::ComPtr<ID3D12Device2> device,
             Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator, D3D12_COMMAND_LIST_TYPE type);

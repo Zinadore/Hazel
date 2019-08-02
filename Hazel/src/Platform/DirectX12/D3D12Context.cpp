@@ -66,6 +66,7 @@ namespace Hazel {
         m_DSVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
 
         UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
+        CreateDepthStencil();
 
         for (int i = 0; i < m_NumFrames; ++i)
         {
@@ -312,6 +313,51 @@ namespace Hazel {
         }
 
         m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+    }
+
+   void D3D12Context::CreateDepthStencil()
+    {
+        D3D12_RESOURCE_DESC desc;
+
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        desc.Alignment = 0;
+        desc.Width = m_ClientWidth;
+        desc.Height = m_ClientHeight;
+        desc.DepthOrArraySize = 1;
+        desc.MipLevels = 1;
+        desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        desc.SampleDesc = { 1, 0 };
+        desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+        D3D12_CLEAR_VALUE clear;
+        clear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        clear.DepthStencil.Depth = 1.0f;
+        clear.DepthStencil.Stencil = 0.0f;
+
+        ThrowIfFailed(m_Device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &desc,
+            D3D12_RESOURCE_STATE_COMMON,
+            &clear,
+            IID_PPV_ARGS(m_DepthStencilBuffer.GetAddressOf())
+        ));
+
+        m_Device->CreateDepthStencilView(
+            m_DepthStencilBuffer.Get(),
+            nullptr,
+            DepthStencilView()
+        );
+
+        auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            m_DepthStencilBuffer.Get(),
+            D3D12_RESOURCE_STATE_COMMON,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE
+        );
+
+        m_CommandList->ResourceBarrier(1, &barrier);
+
     }
 
     ComPtr<ID3D12CommandAllocator> D3D12Context::CreateCommandAllocator(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type)
