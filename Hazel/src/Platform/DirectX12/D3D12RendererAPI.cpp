@@ -52,6 +52,14 @@ namespace Hazel {
             D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
         ctx->m_CommandList->ResourceBarrier(1, &barrier);
+
+        //auto dsBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        //    ctx->m_DepthStencilBuffer.Get(),
+        //    D3D12_RESOURCE_STATE_COMMON,
+        //    D3D12_RESOURCE_STATE_DEPTH_WRITE
+        //);
+
+        //ctx->m_CommandList->ResourceBarrier(1, &dsBarrier);
         ctx->m_CommandList->RSSetViewports(1, &ctx->m_Viewport);
     }
 

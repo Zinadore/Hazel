@@ -41,7 +41,8 @@ namespace Hazel {
     D3D12Context::D3D12Context(Window* window)
         : GraphicsContext(window), m_NumFrames(NUM_FRAMES)
     {
-        m_NativeHandle = (HWND)window->GetNativeWindow();
+        auto wnd = (GLFWwindow *)window->GetNativeWindow();
+        m_NativeHandle = glfwGetWin32Window(wnd);
         HZ_CORE_ASSERT(m_NativeHandle, "HWND is null!");
     }
 
@@ -55,15 +56,36 @@ namespace Hazel {
 
         ::GetWindowRect(m_NativeHandle, &m_WindowRect);
 
+        // The device
         ComPtr<IDXGIAdapter4> theAdapter = GetAdapter(false);
         m_Device = CreateDevice(theAdapter);
+        NAME_D3D12_OBJECT(m_Device);
+        
+        // The command queue        
         m_CommandQueue = CreateCommandQueue(m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+        NAME_D3D12_OBJECT(m_CommandQueue);
+        
+        // The Swap Chain
         m_SwapChain = CreateSwapChain(m_NativeHandle, m_CommandQueue, width, height, m_NumFrames);
         m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+        
+        // Command Objects
+        for (int i = 0; i < m_NumFrames; ++i)
+        {
+            m_CommandAllocators[i] = CreateCommandAllocator(m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+            NAME_D3D12_OBJECT_INDEXED(m_CommandAllocators, i);
+        }
+
+        m_CommandList = CreateCommandList(m_Device, m_CommandAllocators[m_CurrentBackbufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
+        NAME_D3D12_OBJECT(m_CommandList);
+        // The Heaps
         m_RTVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_NumFrames);
+        NAME_D3D12_OBJECT(m_RTVDescriptorHeap);
         m_RTVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
         m_SRVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+        NAME_D3D12_OBJECT(m_SRVDescriptorHeap);
         m_DSVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+        NAME_D3D12_OBJECT(m_DSVDescriptorHeap);
 
         UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
         CreateDepthStencil();
@@ -75,15 +97,11 @@ namespace Hazel {
         m_Viewport.MinDepth = 0.0f;
         m_Viewport.MaxDepth = 1.0f;
 
-
-        for (int i = 0; i < m_NumFrames; ++i)
-        {
-            m_CommandAllocators[i] = CreateCommandAllocator(m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-        }
-        m_CommandList = CreateCommandList(m_Device, m_CommandAllocators[m_CurrentBackbufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
-
+        // Sync
         m_Fence = CreateFence(m_Device);
         m_FenceEvent = CreateEventHandle();
+
+        PerformInitializationTransitions();
 
         DXGI_ADAPTER_DESC3 desc;
         theAdapter->GetDesc3(&desc);
@@ -266,8 +284,7 @@ namespace Hazel {
         swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
         // TODO: It is recommended to always allow tearing if tearing support is available.
         swapChainDesc.Flags = CheckTearingSupport() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-
-
+       
         ComPtr<IDXGISwapChain1> swapChain1;
         ThrowIfFailed(dxgiFactory4->CreateSwapChainForHwnd(
             commandQueue.Get(),
@@ -316,6 +333,7 @@ namespace Hazel {
             device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
 
             m_BackBuffers[i] = backBuffer;
+            NAME_D3D12_OBJECT_INDEXED(m_BackBuffers, i);
 
             rtvHandle.Offset(1, rtvDescriptorSize);
         }
@@ -341,7 +359,7 @@ namespace Hazel {
         D3D12_CLEAR_VALUE clear;
         clear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
         clear.DepthStencil.Depth = 1.0f;
-        clear.DepthStencil.Stencil = 0.0f;
+        clear.DepthStencil.Stencil = 0;
 
         ThrowIfFailed(m_Device->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -358,14 +376,7 @@ namespace Hazel {
             DepthStencilView()
         );
 
-        auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            m_DepthStencilBuffer.Get(),
-            D3D12_RESOURCE_STATE_COMMON,
-            D3D12_RESOURCE_STATE_DEPTH_WRITE
-        );
-
-        m_CommandList->ResourceBarrier(1, &barrier);
-
+        NAME_D3D12_OBJECT(m_DepthStencilBuffer);
     }
 
     ComPtr<ID3D12CommandAllocator> D3D12Context::CreateCommandAllocator(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type)
@@ -465,5 +476,32 @@ namespace Hazel {
     D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::DepthStencilView() const
     {
         return m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    }
+    void D3D12Context::PerformInitializationTransitions()
+    {
+        auto commandAllocator = m_CommandAllocators[m_CurrentBackbufferIndex];
+
+        commandAllocator->Reset();
+        m_CommandList->Reset(commandAllocator.Get(), nullptr);
+
+        // Transitions go here
+        {
+            auto dsBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+                m_DepthStencilBuffer.Get(),
+                D3D12_RESOURCE_STATE_COMMON,
+                D3D12_RESOURCE_STATE_DEPTH_WRITE
+            );
+
+            m_CommandList->ResourceBarrier(1, &dsBarrier);
+        }
+
+        ThrowIfFailed(m_CommandList->Close());
+
+        ID3D12CommandList* const commandLists[] = {
+            m_CommandList.Get()
+        };
+        m_CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+
+        Flush();
     }
 }

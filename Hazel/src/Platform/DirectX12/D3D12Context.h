@@ -95,6 +95,7 @@ namespace Hazel {
 
         D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
+        void PerformInitializationTransitions();
         
     };
 }
