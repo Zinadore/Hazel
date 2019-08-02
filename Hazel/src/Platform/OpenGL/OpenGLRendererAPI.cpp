@@ -5,8 +5,11 @@
 #include <GLFW/glfw3.h>
 #include "Hazel/Application.h"
 namespace Hazel {
+    OpenGLRendererAPI::OpenGLRendererAPI()
+    {
+    }
 
-	void OpenGLRendererAPI::SetClearColor(const glm::vec4& color)
+    void OpenGLRendererAPI::SetClearColor(const glm::vec4& color)
 	{
 		glClearColor(color.r, color.g, color.b, color.a);
 	}

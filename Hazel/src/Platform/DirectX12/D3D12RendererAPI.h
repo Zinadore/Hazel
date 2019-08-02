@@ -3,6 +3,8 @@
 #include <glm/vec4.hpp>
 
 namespace Hazel {
+    class D3D12Context;
+
     class D3D12RendererAPI : public RendererAPI
     {
     public:
@@ -18,5 +20,6 @@ namespace Hazel {
 
     private:
         glm::vec4 m_ClearColor;
+        D3D12Context* ctx;
     };
 }

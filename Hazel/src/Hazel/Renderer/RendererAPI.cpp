@@ -11,6 +11,12 @@ namespace Hazel {
     RendererAPI::API RendererAPI::s_API = API::None;
     RendererAPI* RendererAPI::s_Instance = nullptr;
 
+    void RendererAPI::SetGraphicsContext(GraphicsContext * context)
+    {
+        HZ_CORE_ASSERT(context, "Grahics contex is null!!");
+        s_Instance->m_Context = context;
+    }
+
     void RendererAPI::SelectAPI(API api)
     {
         if (s_Instance != nullptr) {

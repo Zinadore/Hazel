@@ -7,6 +7,8 @@ namespace Hazel {
 	class OpenGLRendererAPI : public RendererAPI
 	{
 	public:
+        OpenGLRendererAPI();
+
 		virtual void SetClearColor(const glm::vec4& color) override;
 		virtual void Clear() override;
 

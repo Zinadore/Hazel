@@ -24,10 +24,7 @@ namespace Hazel {
 
         inline static API GetAPI() { return s_API; }
         inline static bool IsInitialized() { return s_Instance != nullptr; }
-        inline static void SetGraphicsContext(GraphicsContext* context) { 
-            HZ_CORE_ASSERT(context, "Grahics contex is null!!");
-            s_Instance->m_Context = context; 
-        }
+        static void SetGraphicsContext(GraphicsContext* context);
         static void SelectAPI(API api);
 
     private:
