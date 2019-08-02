@@ -1,16 +1,21 @@
 #include "hzpch.h"
 #include "OpenGLContext.h"
 
+#include "Hazel/Window.h"
+
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 #include <GL/GL.h>
 
 namespace Hazel {
 
-	OpenGLContext::OpenGLContext(GLFWwindow* windowHandle)
-		: m_WindowHandle(windowHandle)
+	OpenGLContext::OpenGLContext(Window* window)
+		: GraphicsContext(window)
 	{
-		HZ_CORE_ASSERT(windowHandle, "Window handle is null!")
+        HZ_CORE_ASSERT(window, "Window is null!");
+
+        m_WindowHandle = (GLFWwindow*)window->GetNativeWindow();
+        HZ_CORE_ASSERT(m_WindowHandle, "Window handle is null");
 	}
 
 	void OpenGLContext::Init(unsigned int width, unsigned int height)

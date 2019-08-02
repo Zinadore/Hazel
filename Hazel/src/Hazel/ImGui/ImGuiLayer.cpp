@@ -57,6 +57,17 @@ namespace Hazel {
         m_Implementation->Shutdown();
 		ImGui::DestroyContext();
 	}
+
+    void ImGuiLayer::OnEvent(Event& event)
+    {
+        if (event.GetEventType() == EventType::WindowResize) 
+        {
+            WindowResizeEvent& e = (WindowResizeEvent&)event;
+
+            m_Implementation->OnResize(e.GetWidth(), e.GetHeight());
+
+        }
+    }
 	
 	void ImGuiLayer::Begin()
 	{

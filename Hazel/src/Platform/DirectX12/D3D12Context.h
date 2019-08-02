@@ -13,21 +13,19 @@
 #include "d3dx12.h"
 
 #include "Hazel/Renderer/GraphicsContext.h"
-
-struct GLFWwindow;
+#include "Hazel/Window.h"
 
 namespace Hazel {
     class D3D12Context : public GraphicsContext 
     {
     public:
-        D3D12Context(GLFWwindow* windowHandle);
+        D3D12Context(Window* window);
 
         virtual void Init(unsigned int width, unsigned int height) override;
         virtual void SetVSync(bool enabled) override;
         virtual void SwapBuffers() override;
 
     public:
-        GLFWwindow* m_WindowHandle;
         HWND m_NativeHandle;
         RECT m_WindowRect;
         uint8_t m_NumFrames;
@@ -43,12 +41,13 @@ namespace Hazel {
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>   m_CommandList;
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator>      m_CommandAllocators[NUM_FRAMES];
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        m_RTVDescriptorHeap;
-        Microsoft::WRL::ComPtr<ID3D12Fence>                 m_Fence;
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        m_SRVDescriptorHeap;
+        Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        m_DSVDescriptorHeap;
+        Microsoft::WRL::ComPtr<ID3D12Fence>                 m_Fence;
         // Sync
-        HANDLE                                              m_FenceEvent;
-        uint64_t m_FenceValue = 0;
-        uint64_t m_FrameFenceValues[NUM_FRAMES] = {};
+        HANDLE      m_FenceEvent;
+        uint64_t    m_FenceValue = 0;
+        uint64_t    m_FrameFenceValues[NUM_FRAMES] = {};
 
         void EnableDebugLayer();
 
@@ -81,11 +80,16 @@ namespace Hazel {
         void WaitForFenceValue(Microsoft::WRL::ComPtr<ID3D12Fence> fence, uint64_t fenceValue, HANDLE fenceEvent,
             std::chrono::milliseconds duration = std::chrono::milliseconds::max());
 
-        void Flush(Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue, Microsoft::WRL::ComPtr<ID3D12Fence> fence,
-            uint64_t& fenceValue, HANDLE fenceEvent);
+        void Flush();
 
         void CleanupRenderTargetViews();
 
         void ResizeSwapChain(UINT width, UINT height);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
+
+        D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
+
+        
     };
 }

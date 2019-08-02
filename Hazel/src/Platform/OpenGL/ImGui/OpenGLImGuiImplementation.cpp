@@ -27,6 +27,10 @@ void Hazel::OpenGLImGuiImplementation::UpdateDockedWindows()
     glfwMakeContextCurrent(backup_current_context);
 }
 
+void Hazel::OpenGLImGuiImplementation::OnResize(unsigned int width, unsigned int height)
+{
+}
+
 void Hazel::OpenGLImGuiImplementation::RenderDrawData(ImDrawData* drawData)
 {
     ImGui_ImplOpenGL3_RenderDrawData(drawData);

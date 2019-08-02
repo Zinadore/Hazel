@@ -21,24 +21,6 @@ namespace Hazel {
         if (ImGui_ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam))
             return true;
 
-        switch (uMsg)
-        {
-            // NOTE : This might be super wrong. The ImGui layer should probably
-            // handle the dispatched resize event. But there is no such event yet
-        case WM_SIZE:
-
-            if (sInstance == nullptr || wParam == SIZE_MINIMIZED) break;
-
-            auto ctx = sInstance->ctx;
-            ImGui_ImplDX12_InvalidateDeviceObjects();
-            ctx->CleanupRenderTargetViews();
-            ctx->ResizeSwapChain((UINT)LOWORD(lParam), (UINT)HIWORD(lParam));
-            ctx->UpdateRenderTargetViews(ctx->m_Device, ctx->m_SwapChain, ctx->m_RTVDescriptorHeap);
-            ImGui_ImplDX12_CreateDeviceObjects();
-
-            return 0;
-        }
-
         return ::CallWindowProc(originalWindowProc, hwnd, uMsg, wParam, lParam);
     }
 
@@ -83,6 +65,15 @@ namespace Hazel {
     {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault(NULL, (void*)ctx->m_CommandList.Get());
+    }
+
+    void D3D12ImGuiImplementation::OnResize(unsigned int width, unsigned int height)
+    {
+        ImGui_ImplDX12_InvalidateDeviceObjects();
+        ctx->CleanupRenderTargetViews();
+        ctx->ResizeSwapChain(width, height);
+        ctx->UpdateRenderTargetViews(ctx->m_Device, ctx->m_SwapChain, ctx->m_RTVDescriptorHeap);
+        ImGui_ImplDX12_CreateDeviceObjects();
     }
 
     D3D12ImGuiImplementation * D3D12ImGuiImplementation::Create()

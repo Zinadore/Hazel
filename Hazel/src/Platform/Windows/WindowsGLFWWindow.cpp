@@ -1,5 +1,9 @@
 #include "hzpch.h"
-#include "WindowsWindow.h"
+#include "WindowsGLFWWindow.h"
+#ifdef HZ_PLATFORM_WINDOWS
+#include "Win32Window.h"
+#endif // HZ_PLATFORM_WINDOWS
+
 
 #include "Hazel/Events/ApplicationEvent.h"
 #include "Hazel/Events/MouseEvent.h"
@@ -18,23 +22,38 @@ namespace Hazel {
 	{
 		HZ_CORE_ERROR("GLFW Error ({0}): {1}", error, description);
 	}
-
+    // TODO: Move this method to some other cpp file
 	Window* Window::Create(const WindowProps& props)
 	{
-		return new WindowsWindow(props);
+        switch (Renderer::GetAPI())
+        {
+        case RendererAPI::API::None:    HZ_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
+        case RendererAPI::API::OpenGL:  return new WindowsGLFWWindow(props);
+        case RendererAPI::API::D3D12: {
+#ifdef HZ_PLATFORM_WINDOWS
+            return new Win32Window(props);
+#else
+            HZ_CORE_ASSERT(false, "Using D3D12 on a non-windows build is not supported!");
+#endif
+        }
+        }
+
+        HZ_CORE_ASSERT(false, "Unknown RendererAPI!");
+        
+        return nullptr;
 	}
 
-	WindowsWindow::WindowsWindow(const WindowProps& props)
+	WindowsGLFWWindow::WindowsGLFWWindow(const WindowProps& props)
 	{
 		Init(props);
 	}
 
-	WindowsWindow::~WindowsWindow()
+	WindowsGLFWWindow::~WindowsGLFWWindow()
 	{
 		Shutdown();
 	}
 
-	void WindowsWindow::Init(const WindowProps& props)
+	void WindowsGLFWWindow::Init(const WindowProps& props)
 	{
 		m_Data.Title = props.Title;
 		m_Data.Width = props.Width;
@@ -51,15 +70,15 @@ namespace Hazel {
 			s_GLFWInitialized = true;
 		}
 
-        // Disable rendering API if we are not using OpenGL
-        if (Renderer::GetAPI() != RendererAPI::API::OpenGL) 
-        {
-            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        }
+        //// Disable rendering API if we are not using OpenGL
+        //if (Renderer::GetAPI() != RendererAPI::API::OpenGL) 
+        //{
+        //    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        //}
 
 		m_Window = glfwCreateWindow((int)props.Width, (int)props.Height, m_Data.Title.c_str(), nullptr, nullptr);
 
-        m_Context = GraphicsContext::Create(m_Window);
+        m_Context = GraphicsContext::Create(this);
 		m_Context->Init(props.Width, props.Height);
         RendererAPI::SetGraphicsContext(m_Context);
 
@@ -157,23 +176,23 @@ namespace Hazel {
 		});
 	}
 
-	void WindowsWindow::Shutdown()
+	void WindowsGLFWWindow::Shutdown()
 	{
 		glfwDestroyWindow(m_Window);
 	}
 
-	void WindowsWindow::OnUpdate()
+	void WindowsGLFWWindow::OnUpdate()
 	{
 		glfwPollEvents();
 	}
 
-	void WindowsWindow::SetVSync(bool enabled)
+	void WindowsGLFWWindow::SetVSync(bool enabled)
 	{
         m_Context->SetVSync(enabled);
 		m_Data.VSync = enabled;
 	}
 
-	bool WindowsWindow::IsVSync() const
+	bool WindowsGLFWWindow::IsVSync() const
 	{
 		return m_Data.VSync;
 	}

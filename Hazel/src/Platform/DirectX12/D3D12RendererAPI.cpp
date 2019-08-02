@@ -22,9 +22,7 @@ namespace Hazel {
         auto ctx = static_cast<D3D12Context*>(m_Context);
         auto backBuffer = ctx->m_BackBuffers[ctx->m_CurrentBackbufferIndex];
  
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(ctx->m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-            ctx->m_CurrentBackbufferIndex, 
-            ctx->m_RTVDescriptorSize);
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv = ctx->CurrentBackBufferView();
 
         ctx->m_CommandList->ClearRenderTargetView(rtv, glm::value_ptr(m_ClearColor), 0, nullptr);
         ctx->m_CommandList->OMSetRenderTargets(1, &rtv, FALSE, NULL);

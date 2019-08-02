@@ -23,6 +23,8 @@ namespace Hazel {
 
 
         virtual void UpdateDockedWindows() override;
+
+        virtual void OnResize(unsigned int width, unsigned int height) override;
         
         static D3D12ImGuiImplementation* Create();
 

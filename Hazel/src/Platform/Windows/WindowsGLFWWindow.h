@@ -7,11 +7,11 @@
 
 namespace Hazel {
 
-	class WindowsWindow : public Window
+	class WindowsGLFWWindow : public Window
 	{
 	public:
-		WindowsWindow(const WindowProps& props);
-		virtual ~WindowsWindow();
+		WindowsGLFWWindow(const WindowProps& props);
+		virtual ~WindowsGLFWWindow();
 
 		void OnUpdate() override;
 

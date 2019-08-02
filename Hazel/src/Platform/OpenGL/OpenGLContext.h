@@ -2,6 +2,7 @@
 
 #include "Hazel/Renderer/GraphicsContext.h"
 
+class Hazel::Window;
 struct GLFWwindow;
 
 namespace Hazel {
@@ -9,7 +10,7 @@ namespace Hazel {
 	class OpenGLContext : public GraphicsContext
 	{
 	public:
-		OpenGLContext(GLFWwindow* windowHandle);
+		OpenGLContext(Window* window);
 
 		virtual void Init(unsigned int width, unsigned int height) override;
 		virtual void SwapBuffers() override;

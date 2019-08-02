@@ -1,16 +1,20 @@
 #include <hzpch.h>
-#include <GLFW/glfw3.h>
 
 #include "GraphicsContext.h"
 
 #include "Hazel/Renderer/Renderer.h"
 #include "Hazel/Renderer/RendererAPI.h"
+#include "Hazel/Window.h"
 
 #include "Platform/OpenGL/OpenGLContext.h"
 #include "Platform/DirectX12/D3D12Context.h"
 
 namespace Hazel {
-    GraphicsContext* GraphicsContext::Create(GLFWwindow* window)
+    GraphicsContext::GraphicsContext(Window * window)
+        :m_Window(window)
+    {
+    }
+    GraphicsContext* GraphicsContext::Create(Window* window)
     {
         switch (Renderer::GetAPI())
         {

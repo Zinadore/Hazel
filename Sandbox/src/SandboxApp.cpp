@@ -172,7 +172,7 @@ class Sandbox : public Hazel::Application
 {
 public:
     Sandbox()
-        :Application(Hazel::RendererAPI::API::OpenGL)
+        :Application(Hazel::RendererAPI::API::D3D12)
     {
         PushLayer(new ExampleLayer());
     }

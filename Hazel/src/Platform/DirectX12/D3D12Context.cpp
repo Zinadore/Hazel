@@ -8,6 +8,7 @@
 #include <string>
 #include "Hazel/Log.h"
 
+
 bool CheckTearingSupport()
 {
     BOOL allowTearing = FALSE;
@@ -37,12 +38,10 @@ bool CheckTearingSupport()
 namespace Hazel {
     using namespace Microsoft::WRL;
 
-    D3D12Context::D3D12Context(GLFWwindow* windowHandle)
-        :m_WindowHandle(windowHandle), m_NumFrames(NUM_FRAMES)
+    D3D12Context::D3D12Context(Window* window)
+        : GraphicsContext(window), m_NumFrames(NUM_FRAMES)
     {
-        HZ_CORE_ASSERT(windowHandle, "Window handle is null!");
-
-        m_NativeHandle = glfwGetWin32Window(m_WindowHandle);
+        m_NativeHandle = (HWND)window->GetNativeWindow();
         HZ_CORE_ASSERT(m_NativeHandle, "HWND is null!");
     }
 
@@ -64,7 +63,7 @@ namespace Hazel {
         m_RTVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_NumFrames);
         m_RTVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
         m_SRVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-
+        m_DSVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
 
         UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
 
@@ -309,8 +308,10 @@ namespace Hazel {
 
             m_BackBuffers[i] = backBuffer;
 
-            rtvHandle.Offset(rtvDescriptorSize);
+            rtvHandle.Offset(1, rtvDescriptorSize);
         }
+
+        m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
     }
 
     ComPtr<ID3D12CommandAllocator> D3D12Context::CreateCommandAllocator(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type)
@@ -359,6 +360,7 @@ namespace Hazel {
 
         return fenceValueForSignal;
     }
+    
     void D3D12Context::WaitForFenceValue(ComPtr<ID3D12Fence> fence, uint64_t fenceValue, HANDLE fenceEvent, std::chrono::milliseconds duration)
     {
         if (fence->GetCompletedValue() < fenceValue)
@@ -367,20 +369,24 @@ namespace Hazel {
             ::WaitForSingleObject(fenceEvent, static_cast<DWORD>(duration.count()));
         }
     }
-    void D3D12Context::Flush(ComPtr<ID3D12CommandQueue> commandQueue, ComPtr<ID3D12Fence> fence, uint64_t & fenceValue, HANDLE fenceEvent)
+    
+    void D3D12Context::Flush()
     {
-        uint64_t fenceValueForSignal = Signal(commandQueue, fence, fenceValue);
-        WaitForFenceValue(fence, fenceValueForSignal, fenceEvent);
+        uint64_t fenceValueForSignal = Signal(m_CommandQueue, m_Fence, m_FenceValue);
+        WaitForFenceValue(m_Fence, fenceValueForSignal, m_FenceEvent);
     }
     void D3D12Context::CleanupRenderTargetViews()
     {
-        Flush(m_CommandQueue, m_Fence, m_FenceValue, m_FenceEvent);
+        Flush();
+
+        auto allocator = m_CommandAllocators[m_CurrentBackbufferIndex];
+
+        ThrowIfFailed(m_CommandList->Reset(allocator.Get(), nullptr));
 
         for (UINT i = 0; i < m_NumFrames; i++)
         {
             if (m_BackBuffers[i]) {
-                m_BackBuffers[i]->Release();
-                m_BackBuffers[i] = nullptr;
+                m_BackBuffers[i].Reset();
                 m_FrameFenceValues[i] = m_FrameFenceValues[m_CurrentBackbufferIndex];
             }
         }
@@ -393,5 +399,17 @@ namespace Hazel {
             swapChainDesc.BufferDesc.Format, swapChainDesc.Flags));
 
         m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+    }
+    D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::CurrentBackBufferView() const
+    {
+        return CD3DX12_CPU_DESCRIPTOR_HANDLE(
+            m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+            m_CurrentBackbufferIndex,
+            m_RTVDescriptorSize
+        );
+    }
+    D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::DepthStencilView() const
+    {
+        return m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
     }
 }
