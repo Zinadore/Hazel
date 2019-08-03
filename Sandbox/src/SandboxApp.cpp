@@ -127,7 +127,7 @@ public:
 
         m_BlueShader.reset(new Hazel::Shader(blueShaderVertexSrc, blueShaderFragmentSrc));*/
     }
-
+    
     void OnUpdate() override
     {
         Hazel::RenderCommand::SetClearColor({ 1.0f, 0.1f, 1.0f, 1.0f });
@@ -154,7 +154,11 @@ public:
 
     void OnEvent(Hazel::Event& event) override
     {
-
+        if (event.GetEventType() == Hazel::EventType::WindowResize) 
+        {
+            auto e = *(Hazel::WindowResizeEvent*)&event;
+            HZ_INFO("Resize event from TestLayer::OnEvent. Resolution: {0}x{1}", e.GetWidth(), e.GetHeight());
+       }
     }
 
 private:
@@ -172,7 +176,7 @@ class Sandbox : public Hazel::Application
 {
 public:
     Sandbox()
-        :Application(Hazel::RendererAPI::API::D3D12)
+        :Application(Hazel::RendererAPI::API::OpenGL)
     {
         PushLayer(new ExampleLayer());
     }

@@ -53,13 +53,6 @@ namespace Hazel {
 
         ctx->m_CommandList->ResourceBarrier(1, &barrier);
 
-        //auto dsBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        //    ctx->m_DepthStencilBuffer.Get(),
-        //    D3D12_RESOURCE_STATE_COMMON,
-        //    D3D12_RESOURCE_STATE_DEPTH_WRITE
-        //);
-
-        //ctx->m_CommandList->ResourceBarrier(1, &dsBarrier);
         ctx->m_CommandList->RSSetViewports(1, &ctx->m_Viewport);
     }
 
@@ -68,10 +61,21 @@ namespace Hazel {
         m_Context->SwapBuffers();
     }
 
+    // NOT: The context has access to the new window size through the window itself
+    void D3D12RendererAPI::ResizeResources()
+    {
+        ctx->CleanupRenderTargetViews();
+        ctx->ResizeSwapChain();
+        ctx->UpdateRenderTargetViews(ctx->m_Device, ctx->m_SwapChain, ctx->m_RTVDescriptorHeap);
+        ctx->CreateDepthStencil();
+    }
+
     void D3D12RendererAPI::OnChangeContext()
     {
         ctx = dynamic_cast<D3D12Context*>(m_Context);
         HZ_CORE_ASSERT(ctx, "Context was of wrong type");
     }
+
+
 
 }

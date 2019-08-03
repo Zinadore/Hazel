@@ -60,13 +60,7 @@ namespace Hazel {
 
     void ImGuiLayer::OnEvent(Event& event)
     {
-        if (event.GetEventType() == EventType::WindowResize) 
-        {
-            WindowResizeEvent& e = (WindowResizeEvent&)event;
 
-            m_Implementation->OnResize(e.GetWidth(), e.GetHeight());
-
-        }
     }
 	
 	void ImGuiLayer::Begin()
@@ -90,6 +84,16 @@ namespace Hazel {
             m_Implementation->UpdateDockedWindows();
 		}
 	}
+
+    void ImGuiLayer::OnResizeBegin()
+    {
+        m_Implementation->InvalidateResources();
+    }
+
+    void ImGuiLayer::OnResizeEnd()
+    {
+        m_Implementation->RecreateResources();
+    }
 
 	void ImGuiLayer::OnImGuiRender()
 	{

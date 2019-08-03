@@ -296,7 +296,7 @@ namespace Hazel {
 
         // Disable the Alt+Enter fullscreen toggle feature. Switching to fullscreen
         // will be handled manually.
-        //ThrowIfFailed(dxgiFactory4->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
+        ThrowIfFailed(dxgiFactory4->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
 
         ThrowIfFailed(swapChain1.As(&dxgiSwapChain4));
 
@@ -420,10 +420,10 @@ namespace Hazel {
     uint64_t D3D12Context::Signal(ComPtr<ID3D12CommandQueue> commandQueue, ComPtr<ID3D12Fence> fence,
         uint64_t& fenceValue)
     {
-        uint64_t fenceValueForSignal = ++fenceValue;
-        ThrowIfFailed(commandQueue->Signal(fence.Get(), fenceValueForSignal));
+        uint64_t val = ++fenceValue;
+        ThrowIfFailed(commandQueue->Signal(fence.Get(), val));
 
-        return fenceValueForSignal;
+        return val;
     }
     
     void D3D12Context::WaitForFenceValue(ComPtr<ID3D12Fence> fence, uint64_t fenceValue, HANDLE fenceEvent, std::chrono::milliseconds duration)
@@ -437,27 +437,37 @@ namespace Hazel {
     
     void D3D12Context::Flush()
     {
-        uint64_t fenceValueForSignal = Signal(m_CommandQueue, m_Fence, m_FenceValue);
-        WaitForFenceValue(m_Fence, fenceValueForSignal, m_FenceEvent);
+        ThrowIfFailed(m_CommandQueue->Signal(m_Fence.Get(), m_FrameFenceValues[m_CurrentBackbufferIndex]));
+
+        ThrowIfFailed(m_Fence->SetEventOnCompletion(m_FrameFenceValues[m_CurrentBackbufferIndex], m_FenceEvent));
+
+        ::WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
+
+        m_FrameFenceValues[m_CurrentBackbufferIndex]++;
     }
     void D3D12Context::CleanupRenderTargetViews()
     {
         Flush();
 
-        auto allocator = m_CommandAllocators[m_CurrentBackbufferIndex];
+        //m_CommandList->Close();
 
-        ThrowIfFailed(m_CommandList->Reset(allocator.Get(), nullptr));
+        //auto allocator = m_CommandAllocators[m_CurrentBackbufferIndex];
+
+        //ThrowIfFailed(m_CommandList->Reset(allocator.Get(), nullptr));
 
         for (UINT i = 0; i < m_NumFrames; i++)
         {
-            if (m_BackBuffers[i]) {
-                m_BackBuffers[i].Reset();
-                m_FrameFenceValues[i] = m_FrameFenceValues[m_CurrentBackbufferIndex];
-            }
+            m_BackBuffers[i].Reset();
+            m_FrameFenceValues[i] = m_FrameFenceValues[m_CurrentBackbufferIndex];
         }
+
+        m_DepthStencilBuffer.Reset();
     }
-    void D3D12Context::ResizeSwapChain(UINT width, UINT height)
+    void D3D12Context::ResizeSwapChain()
     {
+        auto width = m_Window->GetWidth();
+        auto height = m_Window->GetHeight();
+
         DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
         ThrowIfFailed(m_SwapChain->GetDesc(&swapChainDesc));
         ThrowIfFailed(m_SwapChain->ResizeBuffers(m_NumFrames, width, height,

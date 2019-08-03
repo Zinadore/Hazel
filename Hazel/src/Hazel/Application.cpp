@@ -6,7 +6,7 @@
 #include <Hazel/Renderer/Renderer.h>
 #include <Hazel/Renderer/RenderCommand.h>
 #include "Input.h"
-
+#define USE_IMGUI 1
 namespace Hazel {
 
 #define BIND_EVENT_FN(x) std::bind(&Application::x, this, std::placeholders::_1)
@@ -20,21 +20,20 @@ namespace Hazel {
         SetRendererAPI(api);
         m_Window = std::unique_ptr<Window>(Window::Create());
         m_Window->SetEventCallback(BIND_EVENT_FN(OnEvent));
-
-        //m_ImGuiLayer = new ImGuiLayer();
-        //PushOverlay(m_ImGuiLayer);
+#if USE_IMGUI
+        m_ImGuiLayer = new ImGuiLayer();
+        PushOverlay(m_ImGuiLayer);
+#endif
     }
 
     void Application::PushLayer(Layer* layer)
     {
         m_LayerStack.PushLayer(layer);
-        layer->OnAttach();
     }
 
     void Application::PushOverlay(Layer* layer)
     {
         m_LayerStack.PushOverlay(layer);
-        layer->OnAttach();
     }
 
     void Application::OnEvent(Event& e)
@@ -48,6 +47,8 @@ namespace Hazel {
             if (e.Handled)
                 break;
         }
+
+        dispatcher.Dispatch<WindowResizeEvent>(BIND_EVENT_FN(OnWindowResize));
     }
 
     void Application::Run()
@@ -58,12 +59,12 @@ namespace Hazel {
 
             for (Layer* layer : m_LayerStack)
                 layer->OnUpdate();
-
-            //m_ImGuiLayer->Begin();
-            //for (Layer* layer : m_LayerStack)
-            //    layer->OnImGuiRender();
-            //m_ImGuiLayer->End();
-
+#if USE_IMGUI
+            m_ImGuiLayer->Begin();
+            for (Layer* layer : m_LayerStack)
+                layer->OnImGuiRender();
+            m_ImGuiLayer->End();
+#endif
             m_Window->OnUpdate();
 
             RenderCommand::EndFrame();
@@ -78,6 +79,18 @@ namespace Hazel {
     bool Application::OnWindowClose(WindowCloseEvent& e)
     {
         m_Running = false;
+        return true;
+    }
+
+    bool Application::OnWindowResize(WindowResizeEvent & e)
+    {
+#if USE_IMGUI
+        m_ImGuiLayer->OnResizeBegin();
+#endif
+        RenderCommand::ResizeResources();
+#if USE_IMGUI
+        m_ImGuiLayer->OnResizeEnd();
+#endif
         return true;
     }
 

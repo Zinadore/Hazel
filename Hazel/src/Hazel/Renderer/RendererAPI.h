@@ -22,6 +22,8 @@ namespace Hazel {
         virtual void BeginFrame() = 0;
         virtual void EndFrame() = 0;
 
+        virtual void ResizeResources() = 0;
+
         inline static API GetAPI() { return s_API; }
         inline static bool IsInitialized() { return s_Instance != nullptr; }
         static void SetGraphicsContext(GraphicsContext* context);

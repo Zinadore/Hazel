@@ -18,6 +18,9 @@ namespace Hazel {
         inline static void BeginFrame() { s_RendererAPI->BeginFrame(); }
 
         inline static void EndFrame() { s_RendererAPI->EndFrame();  }
+
+        // NOTE: Do i need width and height here?
+        inline static void ResizeResources() { s_RendererAPI->ResizeResources(); }
     private:
         static RendererAPI* s_RendererAPI;
 

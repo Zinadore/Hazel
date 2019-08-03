@@ -23,6 +23,8 @@ namespace Hazel {
 
 		void Begin();
 		void End();
+        void OnResizeBegin();
+        void OnResizeEnd();
 	private:
 
         ImGuiImplementation* m_Implementation;

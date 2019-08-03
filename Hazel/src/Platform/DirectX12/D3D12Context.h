@@ -89,7 +89,7 @@ namespace Hazel {
 
         void CleanupRenderTargetViews();
 
-        void ResizeSwapChain(UINT width, UINT height);
+        void ResizeSwapChain();
 
         D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
 

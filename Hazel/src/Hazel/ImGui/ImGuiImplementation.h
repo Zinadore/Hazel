@@ -14,7 +14,8 @@ public:
     virtual void NewFrame() = 0;
     virtual void UpdateDockedWindows() = 0;
     virtual void Shutdown() = 0;
-    virtual void OnResize(unsigned int width, unsigned int height) = 0;
+    virtual void RecreateResources() = 0;
+    virtual void InvalidateResources() = 0;
 
     static ImGuiImplementation* Create();
 };

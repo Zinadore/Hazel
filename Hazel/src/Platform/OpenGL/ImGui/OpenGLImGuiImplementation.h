@@ -15,10 +15,11 @@ namespace Hazel {
 
         virtual void UpdateDockedWindows() override;
 
-        virtual void OnResize(unsigned int width, unsigned int height) override;
-
         virtual void Shutdown() override;
 
+        virtual void RecreateResources() override;
+
+        virtual void InvalidateResources() override;
 
     };
 

@@ -30,18 +30,16 @@ namespace Hazel {
     {
         
         ctx = static_cast<D3D12Context*>(window.GetContext());
-        HWND hwnd = (HWND)window.GetNativeWindow();
-        originalWindowProc = (WNDPROC)::GetWindowLongPtr(hwnd, GWLP_WNDPROC);
+        //HWND hwnd = (HWND)window.GetNativeWindow();
+        //originalWindowProc = (WNDPROC)::GetWindowLongPtr(hwnd, GWLP_WNDPROC);
 
-        ::SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)Hazel::D3D12ImGuiImplementation::WindowProc);
+        //::SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)Hazel::D3D12ImGuiImplementation::WindowProc);
 
         ImGui_ImplWin32_Init(ctx->m_NativeHandle);
         ImGui_ImplDX12_Init(ctx->m_Device.Get(), ctx->m_NumFrames,
             DXGI_FORMAT_R8G8B8A8_UNORM,
             ctx->m_SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
             ctx->m_SRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-
     }
 
     void D3D12ImGuiImplementation::RenderDrawData(ImDrawData* drawData)
@@ -67,13 +65,14 @@ namespace Hazel {
         ImGui::RenderPlatformWindowsDefault(NULL, (void*)ctx->m_CommandList.Get());
     }
 
-    void D3D12ImGuiImplementation::OnResize(unsigned int width, unsigned int height)
+    void D3D12ImGuiImplementation::RecreateResources()
+    {
+        ImGui_ImplDX12_CreateDeviceObjects();
+    }
+
+    void D3D12ImGuiImplementation::InvalidateResources()
     {
         ImGui_ImplDX12_InvalidateDeviceObjects();
-        ctx->CleanupRenderTargetViews();
-        ctx->ResizeSwapChain(width, height);
-        ctx->UpdateRenderTargetViews(ctx->m_Device, ctx->m_SwapChain, ctx->m_RTVDescriptorHeap);
-        ImGui_ImplDX12_CreateDeviceObjects();
     }
 
     D3D12ImGuiImplementation * D3D12ImGuiImplementation::Create()

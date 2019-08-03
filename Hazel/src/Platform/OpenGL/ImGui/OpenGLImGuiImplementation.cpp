@@ -3,8 +3,8 @@
 #include "imgui.h"
 #define IMGUI_IMPL_OPENGL_LOADER_GLAD
 #include "examples/imgui_impl_glfw.h"
-#include "examples/imgui_impl_opengl3.h"
 #include "examples/imgui_impl_glfw.cpp"
+#include "examples/imgui_impl_opengl3.h"
 #include "examples/imgui_impl_opengl3.cpp"
 
 #include <GLFW/glfw3.h>
@@ -27,10 +27,6 @@ void Hazel::OpenGLImGuiImplementation::UpdateDockedWindows()
     glfwMakeContextCurrent(backup_current_context);
 }
 
-void Hazel::OpenGLImGuiImplementation::OnResize(unsigned int width, unsigned int height)
-{
-}
-
 void Hazel::OpenGLImGuiImplementation::RenderDrawData(ImDrawData* drawData)
 {
     ImGui_ImplOpenGL3_RenderDrawData(drawData);
@@ -46,4 +42,12 @@ void Hazel::OpenGLImGuiImplementation::Shutdown()
 {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
+}
+
+void Hazel::OpenGLImGuiImplementation::RecreateResources()
+{
+}
+
+void Hazel::OpenGLImGuiImplementation::InvalidateResources()
+{
 }

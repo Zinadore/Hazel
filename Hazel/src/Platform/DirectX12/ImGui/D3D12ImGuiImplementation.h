@@ -23,16 +23,17 @@ namespace Hazel {
 
 
         virtual void UpdateDockedWindows() override;
-
-        virtual void OnResize(unsigned int width, unsigned int height) override;
         
+        virtual void RecreateResources() override;
+
+        virtual void InvalidateResources() override;
+
         static D3D12ImGuiImplementation* Create();
 
     private:
         D3D12Context* ctx;
         static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
         static D3D12ImGuiImplementation* sInstance;
-
     };
 }
 
