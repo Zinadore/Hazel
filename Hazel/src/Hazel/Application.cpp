@@ -5,7 +5,12 @@
 
 #include <Hazel/Renderer/Renderer.h>
 #include <Hazel/Renderer/RenderCommand.h>
-#include "Input.h"
+#include <Hazel/Input.h>
+
+#include <Platform/DirectX12/D3D12Context.h>
+
+#include <glfw/glfw3.h>
+
 #define USE_IMGUI 1
 namespace Hazel {
 
@@ -55,18 +60,22 @@ namespace Hazel {
     {
         while (m_Running)
         {
+            m_Window->OnUpdate();
+
+            float time = (float)glfwGetTime();
+            Timestep timestep = time - m_LastFrameTime;
+            m_LastFrameTime = time;
+
             RenderCommand::BeginFrame();
 
             for (Layer* layer : m_LayerStack)
-                layer->OnUpdate();
+                layer->OnUpdate(timestep);
 #if USE_IMGUI
             m_ImGuiLayer->Begin();
             for (Layer* layer : m_LayerStack)
                 layer->OnImGuiRender();
             m_ImGuiLayer->End();
 #endif
-            m_Window->OnUpdate();
-
             RenderCommand::EndFrame();
         }
     }
@@ -84,6 +93,8 @@ namespace Hazel {
 
     bool Application::OnWindowResize(WindowResizeEvent & e)
     {
+
+        RenderCommand::Flush();
 #if USE_IMGUI
         m_ImGuiLayer->OnResizeBegin();
 #endif
@@ -91,7 +102,7 @@ namespace Hazel {
 #if USE_IMGUI
         m_ImGuiLayer->OnResizeEnd();
 #endif
-        return true;
+        return false;
     }
 
 }

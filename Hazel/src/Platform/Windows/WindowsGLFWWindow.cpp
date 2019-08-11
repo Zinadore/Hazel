@@ -89,6 +89,7 @@ namespace Hazel {
 		// Set GLFW callbacks
 		glfwSetWindowSizeCallback(m_Window, [](GLFWwindow* window, int width, int height)
 		{
+            HZ_CORE_INFO("WindowSize Callback {0}x{1}", width, height);
 			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 			data.Width = width;
 			data.Height = height;
@@ -96,6 +97,11 @@ namespace Hazel {
 			WindowResizeEvent event(width, height);
 			data.EventCallback(event);
 		});
+
+        glfwSetFramebufferSizeCallback(m_Window, [](GLFWwindow* window, int width, int height)
+        {
+            HZ_CORE_INFO("Framebuffer Callback {0}x{1}", width, height);
+        });
 
 		glfwSetWindowCloseCallback(m_Window, [](GLFWwindow* window)
 		{

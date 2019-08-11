@@ -7,7 +7,24 @@
 #include <GLFW/glfw3native.h>
 #include <string>
 #include "Hazel/Log.h"
+#include "Platform/DirectX12/ComPtr.h"
 
+#define NUM_FRAMES 3
+
+enum VendorID: UINT {
+    AMD = 0x1002,
+    NVIDIA = 0x10DE,
+    INTEL = 0x8086
+};
+
+std::string static inline VendorIDToString(VendorID id) {
+    switch (id) {
+    case AMD:       return "AMD";
+    case NVIDIA:    return "NVIDIA Corporation";
+    case INTEL:     return "Intel";
+    default: return "Unknown Vendor ID";
+    }
+}
 
 bool CheckTearingSupport()
 {
@@ -36,58 +53,105 @@ bool CheckTearingSupport()
 }
 
 namespace Hazel {
-    using namespace Microsoft::WRL;
 
     D3D12Context::D3D12Context(Window* window)
-        : GraphicsContext(window), m_NumFrames(NUM_FRAMES)
+        : GraphicsContext(window)
     {
         auto wnd = (GLFWwindow *)window->GetNativeWindow();
         m_NativeHandle = glfwGetWin32Window(wnd);
         HZ_CORE_ASSERT(m_NativeHandle, "HWND is null!");
+        DeviceResources = new D3D12DeviceResources(NUM_FRAMES);
+    }
+
+    D3D12Context::~D3D12Context()
+    {
+        delete DeviceResources;
     }
 
     void D3D12Context::Init()
     {   
         auto width = m_Window->GetWidth();
         auto height = m_Window->GetHeight();
-
-        EnableDebugLayer();
         m_TearingSupported = CheckTearingSupport();
+
+        DeviceResources->EnableDebugLayer();
+
 
         ::GetWindowRect(m_NativeHandle, &m_WindowRect);
 
         // The device
-        ComPtr<IDXGIAdapter4> theAdapter = GetAdapter(false);
-        m_Device = CreateDevice(theAdapter);
-        NAME_D3D12_OBJECT(m_Device);
-        
+        TComPtr<IDXGIAdapter4> theAdapter = DeviceResources->GetAdapter(false);
+        DeviceResources->Device = DeviceResources->CreateDevice(theAdapter);
+        NAME_D3D12_OBJECT(DeviceResources->Device);
+
+        BuildFrameResources();
+
         // The command queue        
-        m_CommandQueue = CreateCommandQueue(m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-        NAME_D3D12_OBJECT(m_CommandQueue);
+        DeviceResources->CommandQueue = DeviceResources->CreateCommandQueue(
+            DeviceResources->Device,
+            D3D12_COMMAND_LIST_TYPE_DIRECT
+        );
+        NAME_D3D12_OBJECT(DeviceResources->CommandQueue);
         
         // The Swap Chain
-        m_SwapChain = CreateSwapChain(m_NativeHandle, m_CommandQueue, width, height, m_NumFrames);
-        m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+        SwapChainCreationOptions opts = { 0 };
+        opts.Width = width;
+        opts.Height = height;
+        opts.BufferCount = DeviceResources->SwapChainBufferCount;
+        opts.TearingSupported = m_TearingSupported;
+        opts.Handle = m_NativeHandle;
+
+        DeviceResources->SwapChain = DeviceResources->CreateSwapChain(
+            opts,
+            DeviceResources->CommandQueue
+        );
+
+        m_CurrentBackbufferIndex = DeviceResources
+            ->SwapChain
+            ->GetCurrentBackBufferIndex();
         
         // Command Objects
-        for (int i = 0; i < m_NumFrames; ++i)
-        {
-            m_CommandAllocators[i] = CreateCommandAllocator(m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-            NAME_D3D12_OBJECT_INDEXED(m_CommandAllocators, i);
-        }
+        DeviceResources->CommandAllocator = DeviceResources->CreateCommandAllocator(
+            DeviceResources->Device,
+            D3D12_COMMAND_LIST_TYPE_DIRECT
+        );
+        NAME_D3D12_OBJECT(DeviceResources->CommandAllocator);
 
-        m_CommandList = CreateCommandList(m_Device, m_CommandAllocators[m_CurrentBackbufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
-        NAME_D3D12_OBJECT(m_CommandList);
+        DeviceResources->CommandList = DeviceResources->CreateCommandList(
+            DeviceResources->Device,
+            DeviceResources->CommandAllocator,
+            D3D12_COMMAND_LIST_TYPE_DIRECT
+        );
+        NAME_D3D12_OBJECT(DeviceResources->CommandList);
+
         // The Heaps
-        m_RTVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_NumFrames);
-        NAME_D3D12_OBJECT(m_RTVDescriptorHeap);
-        m_RTVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        m_SRVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-        NAME_D3D12_OBJECT(m_SRVDescriptorHeap);
-        m_DSVDescriptorHeap = CreateDescriptorHeap(m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
-        NAME_D3D12_OBJECT(m_DSVDescriptorHeap);
+        DeviceResources->RTVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
+            DeviceResources->Device,
+            D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 
+            DeviceResources->SwapChainBufferCount
+        );
+        NAME_D3D12_OBJECT(DeviceResources->RTVDescriptorHeap);
 
-        UpdateRenderTargetViews(m_Device, m_SwapChain, m_RTVDescriptorHeap);
+        m_RTVDescriptorSize = DeviceResources
+            ->Device
+            ->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        
+        DeviceResources->SRVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
+            DeviceResources->Device, 
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 
+            1, 
+            D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+        );
+        NAME_D3D12_OBJECT(DeviceResources->SRVDescriptorHeap);
+
+        DeviceResources->DSVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
+            DeviceResources->Device, 
+            D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 
+            1
+        );
+        NAME_D3D12_OBJECT(DeviceResources->DSVDescriptorHeap);
+
+        CreateRenderTargetViews();
         CreateDepthStencil();
         
         m_Viewport.TopLeftX = 0.0f;
@@ -98,8 +162,7 @@ namespace Hazel {
         m_Viewport.MaxDepth = 1.0f;
 
         // Sync
-        m_Fence = CreateFence(m_Device);
-        m_FenceEvent = CreateEventHandle();
+        DeviceResources->Fence = DeviceResources->CreateFence(DeviceResources->Device);
 
         PerformInitializationTransitions();
 
@@ -108,9 +171,11 @@ namespace Hazel {
 
         std::wstring description(desc.Description);
         std::string str(description.begin(), description.end());
+        auto vendorString = VendorIDToString((VendorID)desc.VendorId);
         HZ_CORE_INFO("DirectX 12 Info:");
-        HZ_CORE_INFO("  Vendor: {0}", desc.VendorId);
+        HZ_CORE_INFO("  Vendor: {0}", vendorString);
         HZ_CORE_INFO("  Renderer: {0}", str);
+        HZ_CORE_INFO("  Version: Direct3D 12.0");
     }
 
     void D3D12Context::SetVSync(bool enabled)
@@ -118,230 +183,98 @@ namespace Hazel {
         m_VSyncEnabled = enabled;
     }
 
-    void D3D12Context::SwapBuffers()
+    void D3D12Context::NewFrame()
     {
-        auto backBuffer = m_BackBuffers[m_CurrentBackbufferIndex];
+        NextFrameResource();
+        // Get from resource
+        auto commandAllocator = m_CurrentFrameResource->CommandAllocator;
+
+        ThrowIfFailed(commandAllocator->Reset());
+        ThrowIfFailed(DeviceResources->CommandList->Reset(
+            commandAllocator.Get(), 
+            nullptr)
+        );
+        
+        DeviceResources->CommandList->RSSetViewports(1, &m_Viewport);
+
+        auto backBuffer = DeviceResources->BackBuffers[m_CurrentBackbufferIndex];
 
         CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
             backBuffer.Get(),
-            D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+            D3D12_RESOURCE_STATE_PRESENT,
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+            D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
-        m_CommandList->ResourceBarrier(1, &barrier);
+        DeviceResources->CommandList->ResourceBarrier(1, &barrier);
 
-        ThrowIfFailed(m_CommandList->Close());
+    }
+
+    void D3D12Context::SwapBuffers()
+    {
+        auto backBuffer = DeviceResources->BackBuffers[m_CurrentBackbufferIndex];
+
+        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            backBuffer.Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET, 
+            D3D12_RESOURCE_STATE_PRESENT
+        );
+
+        DeviceResources->CommandList->ResourceBarrier(1, &barrier);
+
+        ThrowIfFailed(DeviceResources->CommandList->Close());
 
         ID3D12CommandList* const commandLists[] = {
-            m_CommandList.Get()
+            DeviceResources->CommandList.Get()
         };
-        m_CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+        DeviceResources->CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 
         UINT syncInterval = m_VSyncEnabled ? 1 : 0;
         UINT presentFlags = m_TearingSupported && !m_VSyncEnabled ? DXGI_PRESENT_ALLOW_TEARING : 0;
-        ThrowIfFailed(m_SwapChain->Present(syncInterval, presentFlags));
+        ThrowIfFailed(DeviceResources->SwapChain->Present(syncInterval, presentFlags));
 
-        m_FrameFenceValues[m_CurrentBackbufferIndex] = Signal(m_CommandQueue, m_Fence, m_FenceValue);
+        // Get new backbuffer index
+        m_CurrentBackbufferIndex = DeviceResources->SwapChain->GetCurrentBackBufferIndex();
 
-        m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-
-        WaitForFenceValue(m_Fence, m_FrameFenceValues[m_CurrentBackbufferIndex], m_FenceEvent);
-    }
-
-    void D3D12Context::EnableDebugLayer()
-    {
-#if defined(HZ_DEBUG)
-        ComPtr<ID3D12Debug> debugInterface;
-        ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
-        debugInterface->EnableDebugLayer();
-#endif
-    }
-
-    ComPtr<IDXGIAdapter4> D3D12Context::GetAdapter(bool useWarp)
-    {
-        ComPtr<IDXGIFactory4> dxgiFactory;
-        UINT factoryFlags = 0;
-
-#if defined(HZ_DEBUG)
-        factoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-#endif
-
-        ThrowIfFailed(
-            CreateDXGIFactory2(
-                factoryFlags, 
-                IID_PPV_ARGS(&dxgiFactory)
-            )
+        // Signal the queue
+         m_FenceValue = DeviceResources->Signal(
+            DeviceResources->CommandQueue,
+            DeviceResources->Fence,
+            m_FenceValue
         );
-        
-        ComPtr<IDXGIAdapter1> dxgiAdapter1;
-        ComPtr<IDXGIAdapter4> dxgiAdapter4;
 
-        if (useWarp)
+        // Update the resource
+        m_CurrentFrameResource->FenceValue = m_FenceValue;
+    }
+
+    void D3D12Context::CreateRenderTargetViews()
+    {
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(
+            DeviceResources
+            ->RTVDescriptorHeap
+            ->GetCPUDescriptorHandleForHeapStart()
+        );
+
+        for (int i = 0; i < DeviceResources->SwapChainBufferCount; ++i)
         {
-            ThrowIfFailed(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&dxgiAdapter1)));
-            ThrowIfFailed(dxgiAdapter1.As(&dxgiAdapter4));
-        }
-        else 
-        {
-            // We grab the adapter with the highest VRAM. It "should" be the most performant one.
-            SIZE_T maxDedicatedVideoMemory = 0;
-            for (UINT i = 0; dxgiFactory->EnumAdapters1(i, &dxgiAdapter1) != DXGI_ERROR_NOT_FOUND; ++i)
-            {
-                DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
-                dxgiAdapter1->GetDesc1(&dxgiAdapterDesc1);
+            TComPtr<ID3D12Resource> backBuffer;
+            ThrowIfFailed(DeviceResources->SwapChain
+                ->GetBuffer(i, IID_PPV_ARGS(&backBuffer))
+            );
 
-                if ((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 
-                    && SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), nullptr))
-                    && dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
-                {
-                    maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
-                    ThrowIfFailed(dxgiAdapter1.As(&dxgiAdapter4));
-                }
-            }
-        }
-        return dxgiAdapter4;
-    }
+            DeviceResources->Device->CreateRenderTargetView(
+                backBuffer.Get(), nullptr, rtvHandle);
 
-    ComPtr<ID3D12Device2> D3D12Context::CreateDevice(ComPtr<IDXGIAdapter4> adapter)
-    {
-        ComPtr<ID3D12Device2> d3d12Device2;
-        ThrowIfFailed(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&d3d12Device2)));
-        
-#if defined(HZ_DEBUG)
-        ComPtr<ID3D12InfoQueue> pInfoQueue;
-        if (SUCCEEDED(d3d12Device2.As(&pInfoQueue)))
-        {
-            pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-            pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-            pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+            DeviceResources->BackBuffers[i] = backBuffer;
+            NAME_D3D12_OBJECT_INDEXED(DeviceResources->BackBuffers, i);
 
-            // Suppress whole categories of messages
-            //D3D12_MESSAGE_CATEGORY Categories[] = {};
-
-            // Suppress messages based on their severity level
-            D3D12_MESSAGE_SEVERITY Severities[] =
-            {
-                D3D12_MESSAGE_SEVERITY_INFO
-            };
-
-            // Suppress individual messages by their ID
-            D3D12_MESSAGE_ID DenyIds[] = {
-                D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
-                D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
-                D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
-            };
-
-            D3D12_INFO_QUEUE_FILTER NewFilter = {};
-            //NewFilter.DenyList.NumCategories = _countof(Categories);
-            //NewFilter.DenyList.pCategoryList = Categories;
-            NewFilter.DenyList.NumSeverities = _countof(Severities);
-            NewFilter.DenyList.pSeverityList = Severities;
-            NewFilter.DenyList.NumIDs = _countof(DenyIds);
-            NewFilter.DenyList.pIDList = DenyIds;
-
-            ThrowIfFailed(pInfoQueue->PushStorageFilter(&NewFilter));
-        }
-#endif
-
-        return d3d12Device2;
-    }
-
-    ComPtr<ID3D12CommandQueue> D3D12Context::CreateCommandQueue(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type)
-    {
-        ComPtr<ID3D12CommandQueue> d3d12CommandQueue;
-
-        D3D12_COMMAND_QUEUE_DESC desc = {};
-        desc.Type = type;
-        desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-        desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-        desc.NodeMask = 0;
-
-        ThrowIfFailed(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&d3d12CommandQueue)));
-
-        return d3d12CommandQueue;
-    }
-
-    ComPtr<IDXGISwapChain4> D3D12Context::CreateSwapChain(HWND hWnd, ComPtr<ID3D12CommandQueue> commandQueue,
-         uint32_t width, uint32_t height, uint32_t bufferCount)
-    {
-        ComPtr<IDXGISwapChain4> dxgiSwapChain4;
-        ComPtr<IDXGIFactory4> dxgiFactory4;
-        UINT createFactoryFlags = 0;
-#if defined(_DEBUG)
-        createFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-#endif
-
-        ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory4)));
-
-        DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-        swapChainDesc.Width = width;
-        swapChainDesc.Height = height;
-        swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        swapChainDesc.Stereo = FALSE;
-        swapChainDesc.SampleDesc = { 1, 0 };
-        swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        swapChainDesc.BufferCount = bufferCount;
-        swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
-        swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-        swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-        // TODO: It is recommended to always allow tearing if tearing support is available.
-        swapChainDesc.Flags = CheckTearingSupport() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-       
-        ComPtr<IDXGISwapChain1> swapChain1;
-        ThrowIfFailed(dxgiFactory4->CreateSwapChainForHwnd(
-            commandQueue.Get(),
-            hWnd,
-            &swapChainDesc,
-            nullptr,
-            nullptr,
-            &swapChain1));
-
-        // Disable the Alt+Enter fullscreen toggle feature. Switching to fullscreen
-        // will be handled manually.
-        ThrowIfFailed(dxgiFactory4->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
-
-        ThrowIfFailed(swapChain1.As(&dxgiSwapChain4));
-
-        return dxgiSwapChain4;
-    }
-
-    ComPtr<ID3D12DescriptorHeap> D3D12Context::CreateDescriptorHeap(ComPtr<ID3D12Device2> device,
-        D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
-    {
-        ComPtr<ID3D12DescriptorHeap> descriptorHeap;
-
-        D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-        desc.NumDescriptors = numDescriptors;
-        desc.Type = type;
-        desc.Flags = flags;
-
-        ThrowIfFailed(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
-
-        return descriptorHeap;
-    }
-
-    void D3D12Context::UpdateRenderTargetViews(ComPtr<ID3D12Device2> device,
-        ComPtr<IDXGISwapChain4> swapChain, ComPtr<ID3D12DescriptorHeap> descriptorHeap)
-    {
-        auto rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(descriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-        for (int i = 0; i < m_NumFrames; ++i)
-        {
-            ComPtr<ID3D12Resource> backBuffer;
-            ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
-
-            device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
-
-            m_BackBuffers[i] = backBuffer;
-            NAME_D3D12_OBJECT_INDEXED(m_BackBuffers, i);
-
-            rtvHandle.Offset(1, rtvDescriptorSize);
+            rtvHandle.Offset(1, m_RTVDescriptorSize);
         }
 
-        m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+        m_CurrentBackbufferIndex = DeviceResources->SwapChain->GetCurrentBackBufferIndex();
     }
 
-   void D3D12Context::CreateDepthStencil()
+    void D3D12Context::CreateDepthStencil()
     {
         D3D12_RESOURCE_DESC desc;
 
@@ -361,107 +294,52 @@ namespace Hazel {
         clear.DepthStencil.Depth = 1.0f;
         clear.DepthStencil.Stencil = 0;
 
-        ThrowIfFailed(m_Device->CreateCommittedResource(
+        ThrowIfFailed(DeviceResources->Device->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
             D3D12_HEAP_FLAG_NONE,
             &desc,
             D3D12_RESOURCE_STATE_COMMON,
             &clear,
-            IID_PPV_ARGS(m_DepthStencilBuffer.GetAddressOf())
+            IID_PPV_ARGS(DeviceResources->DepthStencilBuffer.GetAddressOf())
         ));
 
-        m_Device->CreateDepthStencilView(
-            m_DepthStencilBuffer.Get(),
+        DeviceResources->Device->CreateDepthStencilView(
+            DeviceResources->DepthStencilBuffer.Get(),
             nullptr,
             DepthStencilView()
         );
 
-        NAME_D3D12_OBJECT(m_DepthStencilBuffer);
-    }
-
-    ComPtr<ID3D12CommandAllocator> D3D12Context::CreateCommandAllocator(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type)
-    {
-        ComPtr<ID3D12CommandAllocator> commandAllocator;
-        ThrowIfFailed(device->CreateCommandAllocator(type, IID_PPV_ARGS(&commandAllocator)));
-
-        return commandAllocator;
-    }
-
-    ComPtr<ID3D12GraphicsCommandList> D3D12Context::CreateCommandList(ComPtr<ID3D12Device2> device,
-        ComPtr<ID3D12CommandAllocator> commandAllocator, D3D12_COMMAND_LIST_TYPE type)
-    {
-        ComPtr<ID3D12GraphicsCommandList> commandList;
-        ThrowIfFailed(device->CreateCommandList(0, type, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
-
-        ThrowIfFailed(commandList->Close());
-
-        return commandList;
-    }
-
-    ComPtr<ID3D12Fence> D3D12Context::CreateFence(ComPtr<ID3D12Device2> device)
-    {
-        ComPtr<ID3D12Fence> fence;
-
-        ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-
-        return fence;
-    }
-
-    HANDLE D3D12Context::CreateEventHandle()
-    {
-        HANDLE fenceEvent;
-
-        fenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
-        HZ_CORE_ASSERT(fenceEvent, "Failed to create fence event.");
-
-        return fenceEvent;
-    }
-
-    uint64_t D3D12Context::Signal(ComPtr<ID3D12CommandQueue> commandQueue, ComPtr<ID3D12Fence> fence,
-        uint64_t& fenceValue)
-    {
-        uint64_t val = ++fenceValue;
-        ThrowIfFailed(commandQueue->Signal(fence.Get(), val));
-
-        return val;
-    }
-    
-    void D3D12Context::WaitForFenceValue(ComPtr<ID3D12Fence> fence, uint64_t fenceValue, HANDLE fenceEvent, std::chrono::milliseconds duration)
-    {
-        if (fence->GetCompletedValue() < fenceValue)
-        {
-            ThrowIfFailed(fence->SetEventOnCompletion(fenceValue, fenceEvent));
-            ::WaitForSingleObject(fenceEvent, static_cast<DWORD>(duration.count()));
-        }
+        NAME_D3D12_OBJECT(DeviceResources->DepthStencilBuffer);
     }
     
     void D3D12Context::Flush()
     {
-        ThrowIfFailed(m_CommandQueue->Signal(m_Fence.Get(), m_FrameFenceValues[m_CurrentBackbufferIndex]));
+        m_FenceValue = DeviceResources->Signal(
+            DeviceResources->CommandQueue,
+            DeviceResources->Fence,
+            m_FenceValue
+        );
 
-        ThrowIfFailed(m_Fence->SetEventOnCompletion(m_FrameFenceValues[m_CurrentBackbufferIndex], m_FenceEvent));
-
-        ::WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
-
-        m_FrameFenceValues[m_CurrentBackbufferIndex]++;
+        DeviceResources->WaitForFenceValue(
+            DeviceResources->Fence,
+            m_FenceValue
+        );
     }
     void D3D12Context::CleanupRenderTargetViews()
     {
-        Flush();
+        //Flush();
 
-        //m_CommandList->Close();
+        ThrowIfFailed(DeviceResources->CommandList->Reset(
+            DeviceResources->CommandAllocator.Get(),
+            nullptr)
+        );
 
-        //auto allocator = m_CommandAllocators[m_CurrentBackbufferIndex];
-
-        //ThrowIfFailed(m_CommandList->Reset(allocator.Get(), nullptr));
-
-        for (UINT i = 0; i < m_NumFrames; i++)
+        for (UINT i = 0; i < DeviceResources->SwapChainBufferCount; i++)
         {
-            m_BackBuffers[i].Reset();
-            m_FrameFenceValues[i] = m_FrameFenceValues[m_CurrentBackbufferIndex];
+            DeviceResources->BackBuffers[i].Reset();
         }
 
-        m_DepthStencilBuffer.Reset();
+        DeviceResources->DepthStencilBuffer.Reset();
     }
     void D3D12Context::ResizeSwapChain()
     {
@@ -469,49 +347,84 @@ namespace Hazel {
         auto height = m_Window->GetHeight();
 
         DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-        ThrowIfFailed(m_SwapChain->GetDesc(&swapChainDesc));
-        ThrowIfFailed(m_SwapChain->ResizeBuffers(m_NumFrames, width, height,
-            swapChainDesc.BufferDesc.Format, swapChainDesc.Flags));
+        ThrowIfFailed(DeviceResources->SwapChain->GetDesc(&swapChainDesc));
+        ThrowIfFailed(DeviceResources->SwapChain->ResizeBuffers(
+            DeviceResources->SwapChainBufferCount, 
+            width, 
+            height,
+            swapChainDesc.BufferDesc.Format, 
+            swapChainDesc.Flags)
+        );
 
-        m_CurrentBackbufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+        m_CurrentBackbufferIndex = DeviceResources->SwapChain->GetCurrentBackBufferIndex();
     }
     D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::CurrentBackBufferView() const
     {
         return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+            DeviceResources->RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
             m_CurrentBackbufferIndex,
             m_RTVDescriptorSize
         );
     }
+
     D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::DepthStencilView() const
     {
-        return m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+        return DeviceResources->DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
     }
+
     void D3D12Context::PerformInitializationTransitions()
     {
-        auto commandAllocator = m_CommandAllocators[m_CurrentBackbufferIndex];
+        auto commandAllocator = DeviceResources->CommandAllocator;
 
         commandAllocator->Reset();
-        m_CommandList->Reset(commandAllocator.Get(), nullptr);
+        DeviceResources->CommandList->Reset(commandAllocator.Get(), nullptr);
 
         // Transitions go here
         {
             auto dsBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-                m_DepthStencilBuffer.Get(),
+                DeviceResources->DepthStencilBuffer.Get(),
                 D3D12_RESOURCE_STATE_COMMON,
                 D3D12_RESOURCE_STATE_DEPTH_WRITE
             );
 
-            m_CommandList->ResourceBarrier(1, &dsBarrier);
+            DeviceResources->CommandList->ResourceBarrier(1, &dsBarrier);
         }
 
-        ThrowIfFailed(m_CommandList->Close());
+        ThrowIfFailed(DeviceResources->CommandList->Close());
 
         ID3D12CommandList* const commandLists[] = {
-            m_CommandList.Get()
+            DeviceResources->CommandList.Get()
         };
-        m_CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+        DeviceResources->CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 
         Flush();
+    }
+
+    void D3D12Context::NextFrameResource()
+    {
+        m_CurrentBackbufferIndex = DeviceResources->SwapChain->GetCurrentBackBufferIndex();
+
+        m_CurrentFrameResource = FrameResources[m_CurrentBackbufferIndex].get();
+
+        if (m_CurrentFrameResource->FenceValue != 0) {
+            DeviceResources->WaitForFenceValue(
+                DeviceResources->Fence,
+                m_CurrentFrameResource->FenceValue
+            );
+        }
+    }
+
+    void D3D12Context::BuildFrameResources()
+    {
+        auto count = DeviceResources->SwapChainBufferCount;
+        FrameResources.reserve(count);
+
+        for (int i = 0; i < count; i++)
+        {
+            FrameResources.push_back(std::make_unique<D3D12FrameResource>(
+                DeviceResources->Device,
+                1
+            ));
+        }
     }
 }

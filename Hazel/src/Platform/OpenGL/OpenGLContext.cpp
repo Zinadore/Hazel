@@ -45,4 +45,8 @@ namespace Hazel {
             glfwSwapInterval(0);
     }
 
+    void OpenGLContext::NewFrame()
+    {
+    }
+
 }

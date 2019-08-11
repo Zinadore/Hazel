@@ -2,6 +2,7 @@
 #include "D3D12ImGuiImplementation.h"
 
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "examples/imgui_impl_win32.h"
 #include "examples/imgui_impl_dx12.h"
 #include "examples/imgui_impl_win32.cpp"
@@ -30,21 +31,26 @@ namespace Hazel {
     {
         
         ctx = static_cast<D3D12Context*>(window.GetContext());
-        //HWND hwnd = (HWND)window.GetNativeWindow();
-        //originalWindowProc = (WNDPROC)::GetWindowLongPtr(hwnd, GWLP_WNDPROC);
+        HWND hwnd = ctx->GetNativeHandle();
+        originalWindowProc = (WNDPROC)::GetWindowLongPtr(hwnd, GWLP_WNDPROC);
 
-        //::SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)Hazel::D3D12ImGuiImplementation::WindowProc);
+        ::SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)Hazel::D3D12ImGuiImplementation::WindowProc);
+        auto r = ctx->DeviceResources;
 
-        ImGui_ImplWin32_Init(ctx->m_NativeHandle);
-        ImGui_ImplDX12_Init(ctx->m_Device.Get(), ctx->m_NumFrames,
+        ImGui_ImplWin32_Init(ctx->GetNativeHandle());
+        ImGui_ImplDX12_Init(
+            r->Device.Get(), 
+            r->SwapChainBufferCount,
             DXGI_FORMAT_R8G8B8A8_UNORM,
-            ctx->m_SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-            ctx->m_SRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+            r->SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+            r->SRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+        );
     }
 
     void D3D12ImGuiImplementation::RenderDrawData(ImDrawData* drawData)
     {
-        ImGui_ImplDX12_RenderDrawData(drawData, ctx->m_CommandList.Get());
+        auto r = ctx->DeviceResources;
+        ImGui_ImplDX12_RenderDrawData(drawData, r->CommandList.Get());
     }
 
     void D3D12ImGuiImplementation::NewFrame()
@@ -61,8 +67,9 @@ namespace Hazel {
 
     void D3D12ImGuiImplementation::UpdateDockedWindows()
     {
+        auto r = ctx->DeviceResources;
         ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault(NULL, (void*)ctx->m_CommandList.Get());
+        ImGui::RenderPlatformWindowsDefault(NULL, (void*)r->CommandList.Get());
     }
 
     void D3D12ImGuiImplementation::RecreateResources()

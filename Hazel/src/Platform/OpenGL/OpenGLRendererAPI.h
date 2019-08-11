@@ -16,7 +16,7 @@ namespace Hazel {
 
         virtual void BeginFrame() override;
         virtual void EndFrame() override;
-
+        virtual void Flush() override;
         virtual void ResizeResources() override;
 
     protected:

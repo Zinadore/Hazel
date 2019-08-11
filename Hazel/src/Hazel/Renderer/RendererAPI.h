@@ -21,7 +21,7 @@ namespace Hazel {
         
         virtual void BeginFrame() = 0;
         virtual void EndFrame() = 0;
-
+        virtual void Flush() = 0;
         virtual void ResizeResources() = 0;
 
         inline static API GetAPI() { return s_API; }
