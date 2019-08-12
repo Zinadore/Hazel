@@ -20,14 +20,7 @@ namespace Hazel {
 
     void D3D12RendererAPI::Clear()
     {
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv = ctx->CurrentBackBufferView();
-
-        ctx->DeviceResources->CommandList->ClearRenderTargetView(rtv, glm::value_ptr(m_ClearColor), 0, nullptr);
-        ctx->DeviceResources->CommandList->ClearDepthStencilView(ctx->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-        
-        ctx->DeviceResources->CommandList->OMSetRenderTargets(1, &rtv, true, &ctx->DepthStencilView());
-
-        ctx->DeviceResources->CommandList->SetDescriptorHeaps(1, ctx->DeviceResources->SRVDescriptorHeap.GetAddressOf());
+        ctx->Clear(glm::value_ptr(m_ClearColor));
     }
 
     void D3D12RendererAPI::DrawIndexed(const std::shared_ptr<VertexArray>& vertexArray)

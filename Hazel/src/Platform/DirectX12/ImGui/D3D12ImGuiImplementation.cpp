@@ -3,10 +3,10 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
-#include "examples/imgui_impl_win32.h"
-#include "examples/imgui_impl_dx12.h"
-#include "examples/imgui_impl_win32.cpp"
-#include "examples/imgui_impl_dx12.cpp"
+#include "Platform/DirectX12/ImGui/imgui_impl_win32.h"
+#include "Platform/DirectX12/ImGui/imgui_impl_dx12.h"
+#include "Platform/DirectX12/ImGui/imgui_impl_win32.cpp"
+#include "Platform/DirectX12/ImGui/imgui_impl_dx12.cpp"
 
 #include "Platform/DirectX12/D3D12Context.h"
 

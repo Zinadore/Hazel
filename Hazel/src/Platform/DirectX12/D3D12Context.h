@@ -19,6 +19,8 @@ namespace Hazel {
         virtual void NewFrame() override;
         virtual void SwapBuffers() override;
 
+        void Clear(float* color);
+
         void CreateRenderTargetViews();
         void CleanupRenderTargetViews();
         void CreateDepthStencil();
@@ -36,10 +38,8 @@ namespace Hazel {
     private: 
         D3D12FrameResource* m_CurrentFrameResource;
         HWND m_NativeHandle;
-        RECT m_WindowRect;
         D3D12_VIEWPORT m_Viewport;
 
-        bool m_IsTearingEnabled;
         UINT m_RTVDescriptorSize;
         UINT m_CurrentBackbufferIndex;
 

@@ -76,9 +76,6 @@ namespace Hazel {
 
         DeviceResources->EnableDebugLayer();
 
-
-        ::GetWindowRect(m_NativeHandle, &m_WindowRect);
-
         // The device
         TComPtr<IDXGIAdapter4> theAdapter = DeviceResources->GetAdapter(false);
         DeviceResources->Device = DeviceResources->CreateDevice(theAdapter);
@@ -195,7 +192,9 @@ namespace Hazel {
             nullptr)
         );
         
+        DeviceResources->CommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
         DeviceResources->CommandList->RSSetViewports(1, &m_Viewport);
+        DeviceResources->CommandList->SetDescriptorHeaps(1, DeviceResources->SRVDescriptorHeap.GetAddressOf());
 
         auto backBuffer = DeviceResources->BackBuffers[m_CurrentBackbufferIndex];
 
@@ -245,6 +244,16 @@ namespace Hazel {
 
         // Update the resource
         m_CurrentFrameResource->FenceValue = m_FenceValue;
+    }
+
+    void D3D12Context::Clear(float * color)
+    {
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv = CurrentBackBufferView();
+
+        DeviceResources->CommandList->ClearRenderTargetView(rtv, color, 0, nullptr);
+        DeviceResources->CommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+
     }
 
     void D3D12Context::CreateRenderTargetViews()
@@ -357,6 +366,8 @@ namespace Hazel {
         );
 
         m_CurrentBackbufferIndex = DeviceResources->SwapChain->GetCurrentBackBufferIndex();
+        m_Viewport.Width = width;
+        m_Viewport.Height = height;
     }
     D3D12_CPU_DESCRIPTOR_HANDLE D3D12Context::CurrentBackBufferView() const
     {
