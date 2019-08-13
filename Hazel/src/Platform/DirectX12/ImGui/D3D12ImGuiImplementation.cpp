@@ -42,6 +42,7 @@ namespace Hazel {
             r->Device.Get(), 
             r->SwapChainBufferCount,
             DXGI_FORMAT_R8G8B8A8_UNORM,
+            r->SRVDescriptorHeap.Get(),
             r->SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
             r->SRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
         );
@@ -67,8 +68,12 @@ namespace Hazel {
 
     void D3D12ImGuiImplementation::UpdateDockedWindows()
     {
-        auto r = ctx->DeviceResources;
         ImGui::UpdatePlatformWindows();
+    }
+
+    void D3D12ImGuiImplementation::RenderDockedWindows()
+    {
+        auto r = ctx->DeviceResources;
         ImGui::RenderPlatformWindowsDefault(NULL, (void*)r->CommandList.Get());
     }
 

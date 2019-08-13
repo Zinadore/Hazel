@@ -23,7 +23,7 @@ namespace Hazel {
 
 
         virtual void UpdateDockedWindows() override;
-        
+        virtual void RenderDockedWindows() override;
         virtual void RecreateResources() override;
 
         virtual void InvalidateResources() override;

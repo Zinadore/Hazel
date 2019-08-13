@@ -77,6 +77,10 @@ namespace Hazel {
             m_ImGuiLayer->End();
 #endif
             RenderCommand::EndFrame();
+#if USE_IMGUI
+            m_ImGuiLayer->UpdateDockedWindows();
+            m_ImGuiLayer->RenderDockedWindows();
+#endif
         }
     }
 

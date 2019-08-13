@@ -78,12 +78,25 @@ namespace Hazel {
 		// Rendering
 		ImGui::Render();
 		m_Implementation->RenderDrawData(ImGui::GetDrawData());
-
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		{
-            m_Implementation->UpdateDockedWindows();
-		}
 	}
+
+    void ImGuiLayer::UpdateDockedWindows()
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            m_Implementation->UpdateDockedWindows();
+        }
+    }
+
+    void ImGuiLayer::RenderDockedWindows()
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            m_Implementation->RenderDockedWindows();
+        }
+    }
 
     void ImGuiLayer::OnResizeBegin()
     {

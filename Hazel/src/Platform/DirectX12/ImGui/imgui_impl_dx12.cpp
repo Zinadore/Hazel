@@ -44,6 +44,7 @@ static DXGI_FORMAT                  g_RTVFormat = DXGI_FORMAT_UNKNOWN;
 static ID3D12Resource*              g_pFontTextureResource = NULL;
 static D3D12_CPU_DESCRIPTOR_HANDLE  g_hFontSrvCpuDescHandle = {};
 static D3D12_GPU_DESCRIPTOR_HANDLE  g_hFontSrvGpuDescHandle = {};
+static ID3D12DescriptorHeap*        g_pSRVHeap = NULL;
 
 struct FrameResources
 {
@@ -542,6 +543,18 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
         desc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
         desc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
     }
+    {
+        D3D12_BLEND_DESC& desc = psoDesc.BlendState;
+        desc.AlphaToCoverageEnable = false;
+        desc.RenderTarget[0].BlendEnable = true;
+        desc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        desc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+        desc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+        desc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+        desc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+        desc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+        desc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    }
 
     // Create the rasterizer state
     {
@@ -596,7 +609,7 @@ void    ImGui_ImplDX12_InvalidateDeviceObjects()
     }
 }
 
-bool ImGui_ImplDX12_Init(ID3D12Device* device, int num_frames_in_flight, DXGI_FORMAT rtv_format,
+bool ImGui_ImplDX12_Init(ID3D12Device* device, int num_frames_in_flight, DXGI_FORMAT rtv_format, ID3D12DescriptorHeap* srv_heap,
                          D3D12_CPU_DESCRIPTOR_HANDLE font_srv_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE font_srv_gpu_desc_handle)
 {
     // Setup back-end capabilities flags
@@ -611,7 +624,7 @@ bool ImGui_ImplDX12_Init(ID3D12Device* device, int num_frames_in_flight, DXGI_FO
     g_pFrameResources = new FrameResources[num_frames_in_flight];
     g_numFramesInFlight = num_frames_in_flight;
     g_frameIndex = UINT_MAX;
-
+    g_pSRVHeap = srv_heap;
     // Create buffers with a default size (they will later be grown as needed)
     for (int i = 0; i < num_frames_in_flight; i++)
     {
@@ -674,7 +687,6 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
     //
     data->Context = new ImGuiGraphicsContext(hwnd);
     data->Context->Init(viewport, g_pd3dDevice);
-
 }
 
 static void ImGui_ImplDX12_DestroyWindow(ImGuiViewport* viewport)
@@ -707,16 +719,27 @@ static void ImGui_ImplDX12_RenderWindow(ImGuiViewport* viewport, void* renderer_
     ImGuiViewportDataDx12* data = (ImGuiViewportDataDx12*)viewport->RendererUserData;
     ImGuiStyle& style = ImGui::GetStyle();
 
-    ID3D12GraphicsCommandList* command_list = (ID3D12GraphicsCommandList*)renderer_arg;
-    //ID3D12GraphicsCommandList* command_list = data->Context->DeviceResources->CommandList.Get();
+    //ID3D12GraphicsCommandList* command_list = (ID3D12GraphicsCommandList*)renderer_arg;
+    ID3D12GraphicsCommandList* command_list = data->Context->DeviceResources->CommandList.Get();
 
     data->Context->NewFrame();
+    //data->Context
+    //    ->DeviceResources
+    //    ->CommandList
+    //    ->SetDescriptorHeaps(1, &g_pSRVHeap);
     ImVec4 clear_color = style.Colors[ImGuiCol_WindowBg];
+    /*ImVec4 clear_color = { 1.0f, 0.0f, 1.0f, 1.0f };*/
 
-    if (!(viewport->Flags & ImGuiViewportFlags_NoRendererClear))
+    bool shouldClear = !(viewport->Flags & ImGuiViewportFlags_NoRendererClear);
+    if (shouldClear)
         data->Context->Clear(clear_color);
     
-    ImGui_ImplDX12_RenderDrawData(viewport->DrawData, command_list);
+    data->Context->Render(
+        viewport->DrawData, 
+        g_pPipelineState, 
+        g_pRootSignature,
+        g_pSRVHeap
+    );
 }
 
 static void ImGui_ImplDX12_SwapBuffers(ImGuiViewport* viewport, void* renderer_arg)

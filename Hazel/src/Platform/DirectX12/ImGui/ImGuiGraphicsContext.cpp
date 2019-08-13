@@ -8,6 +8,10 @@
 
 #define NUM_FRAMES 2
 
+extern struct VERTEX_CONSTANT_BUFFER
+{
+    float   mvp[4][4];
+};
 
 bool CheckTearingSupport2()
 {
@@ -33,6 +37,17 @@ bool CheckTearingSupport2()
     }
 
     return allowTearing == TRUE;
+}
+
+ImGuiD3D12FrameResource::ImGuiD3D12FrameResource(Hazel::TComPtr<ID3D12Device> device, UINT passCount)
+{
+    ThrowIfFailed(device->CreateCommandAllocator(
+        D3D12_COMMAND_LIST_TYPE_DIRECT,
+        IID_PPV_ARGS(CommandAllocator.GetAddressOf())));
+}
+
+ImGuiD3D12FrameResource::~ImGuiD3D12FrameResource()
+{
 }
 
 ImGuiGraphicsContext::ImGuiGraphicsContext(HWND hwnd)
@@ -114,13 +129,13 @@ void ImGuiGraphicsContext::Init(ImGuiViewport* viewport, ID3D12Device* device)
         ->Device
         ->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-    DeviceResources->SRVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
+    /*DeviceResources->SRVDescriptorHeap = DeviceResources->CreateDescriptorHeap(
         DeviceResources->Device,
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
         1,
         D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
     );
-    NAME_D3D12_OBJECT(DeviceResources->SRVDescriptorHeap);
+    NAME_D3D12_OBJECT(DeviceResources->SRVDescriptorHeap);*/
 
     CreateRenderTargetViews();
 
@@ -154,7 +169,7 @@ void ImGuiGraphicsContext::NewFrame(ID3D12GraphicsCommandList * commandList)
 
     commandList->RSSetViewports(1, &m_Viewport);
     commandList->OMSetRenderTargets(1, &CurrentBackBufferView(), false, nullptr);
-    commandList->SetDescriptorHeaps(1, DeviceResources->SRVDescriptorHeap.GetAddressOf());
+    //commandList->SetDescriptorHeaps(1, DeviceResources->SRVDescriptorHeap.GetAddressOf());
 
     auto backBuffer = DeviceResources->BackBuffers[m_CurrentBackbufferIndex];
 
@@ -166,6 +181,230 @@ void ImGuiGraphicsContext::NewFrame(ID3D12GraphicsCommandList * commandList)
         D3D12_RESOURCE_BARRIER_FLAG_NONE);
 
     commandList->ResourceBarrier(1, &barrier);
+}
+
+void ImGuiGraphicsContext::Render(ImDrawData * drawData, ID3D12PipelineState* pipelineState, ID3D12RootSignature* rootSignature, ID3D12DescriptorHeap* srvHeap)
+{
+    // We are assuming that NewFrame has been called, therefore the queue has been flushed
+    // So we are free to release the buffers IF needed.
+    if (!m_CurrentFrameResource->VertexBuffer || m_CurrentFrameResource->VertexCount != drawData->TotalVtxCount)
+    {
+        if (m_CurrentFrameResource->VertexBuffer) { 
+            m_CurrentFrameResource->VertexBufferUploader.Reset();
+            m_CurrentFrameResource->VertexBuffer.Reset(); 
+        }
+
+        UINT64 bufferSize = drawData->TotalVtxCount * sizeof(ImDrawVert);
+        m_CurrentFrameResource->VertexCount = drawData->TotalVtxCount;
+
+        // Create the actual default buffer resource.
+        ThrowIfFailed(DeviceResources->Device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+            D3D12_RESOURCE_STATE_COMMON,
+            nullptr,
+            IID_PPV_ARGS(m_CurrentFrameResource->VertexBuffer.GetAddressOf())
+        ));
+
+        ThrowIfFailed(DeviceResources->Device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(m_CurrentFrameResource->VertexBufferUploader.GetAddressOf())
+        ));
+    }
+
+    if (!m_CurrentFrameResource->IndexBuffer || m_CurrentFrameResource->IndexCount != drawData->TotalIdxCount)
+    {
+        if (m_CurrentFrameResource->IndexBuffer) { 
+            m_CurrentFrameResource->IndexBufferUploader.Reset();
+            m_CurrentFrameResource->IndexBuffer.Reset(); 
+        }
+
+        UINT64 bufferSize = drawData->TotalIdxCount * sizeof(ImDrawIdx);
+
+        m_CurrentFrameResource->IndexCount = drawData->TotalIdxCount;
+        
+        ThrowIfFailed(DeviceResources->Device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+            D3D12_RESOURCE_STATE_COMMON,
+            nullptr,
+            IID_PPV_ARGS(m_CurrentFrameResource->IndexBuffer.GetAddressOf())
+        ));
+
+        ThrowIfFailed(DeviceResources->Device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(m_CurrentFrameResource->IndexBufferUploader.GetAddressOf())
+        ));
+    }
+
+    // Upload buffers have been created. Now to copy over the data
+
+    // The *MappedData variables are ImDrawVert* and ImDrawIdx respetively.
+    // We just treat them as bytes for now though.
+    ImDrawVert* vertexMappedData;
+    ImDrawIdx* indexMappedData;
+
+    D3D12_RANGE range = { 0 };
+
+    ThrowIfFailed(m_CurrentFrameResource->VertexBufferUploader->Map(0, nullptr, reinterpret_cast<void**>(&vertexMappedData)));
+    ThrowIfFailed(m_CurrentFrameResource->IndexBufferUploader->Map(0, nullptr, reinterpret_cast<void**>(&indexMappedData)));
+
+    ImDrawVert* vertexDestinationPtr = (ImDrawVert*)vertexMappedData;
+    ImDrawIdx* indexDestinationPtr = (ImDrawIdx*)indexMappedData;
+    for (int i = 0; i < drawData->CmdListsCount; ++i)
+    {
+        auto commandList = drawData->CmdLists[i];
+        ::memcpy(vertexDestinationPtr, commandList->VtxBuffer.Data, commandList->VtxBuffer.Size * sizeof(ImDrawVert));
+        ::memcpy(indexDestinationPtr, commandList->IdxBuffer.Data, commandList->IdxBuffer.Size * sizeof(ImDrawIdx));
+        vertexDestinationPtr += commandList->VtxBuffer.Size;
+        indexDestinationPtr += commandList->IdxBuffer.Size;
+    }
+
+    m_CurrentFrameResource->VertexBufferUploader->Unmap(0, &range);
+    m_CurrentFrameResource->IndexBufferUploader->Unmap(0, &range);
+
+
+    // Copy data from upload to default buffer
+    {
+        D3D12_RESOURCE_BARRIER barriersPre[2] = {
+            CD3DX12_RESOURCE_BARRIER::Transition(
+                m_CurrentFrameResource->VertexBuffer.Get(),
+                D3D12_RESOURCE_STATE_COMMON,
+                D3D12_RESOURCE_STATE_COPY_DEST
+            ),
+            CD3DX12_RESOURCE_BARRIER::Transition(
+                m_CurrentFrameResource->IndexBuffer.Get(),
+                D3D12_RESOURCE_STATE_COMMON,
+                D3D12_RESOURCE_STATE_COPY_DEST
+            )
+        };
+
+        DeviceResources->CommandList->ResourceBarrier(2, barriersPre);
+
+        DeviceResources->CommandList->CopyResource(
+            m_CurrentFrameResource->VertexBuffer.Get(),
+            m_CurrentFrameResource->VertexBufferUploader.Get()
+        );
+
+        DeviceResources->CommandList->CopyResource(
+            m_CurrentFrameResource->IndexBuffer.Get(),
+            m_CurrentFrameResource->IndexBufferUploader.Get()
+        );
+
+        D3D12_RESOURCE_BARRIER barriersPost[2] = {
+            CD3DX12_RESOURCE_BARRIER::Transition(
+                m_CurrentFrameResource->VertexBuffer.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_GENERIC_READ
+            ),
+            CD3DX12_RESOURCE_BARRIER::Transition(
+                m_CurrentFrameResource->IndexBuffer.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_GENERIC_READ
+            )
+        };
+
+        DeviceResources->CommandList->ResourceBarrier(2, barriersPost);
+    }
+    // Setup orthographic projection matrix into our constant buffer
+    // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayMin is (0,0) for single viewport apps.
+    VERTEX_CONSTANT_BUFFER vertex_constant_buffer;
+    {
+        VERTEX_CONSTANT_BUFFER* constant_buffer = &vertex_constant_buffer;
+        float L = drawData->DisplayPos.x;
+        float R = drawData->DisplayPos.x + drawData->DisplaySize.x;
+        float T = drawData->DisplayPos.y;
+        float B = drawData->DisplayPos.y + drawData->DisplaySize.y;
+        float mvp[4][4] =
+        {
+            { 2.0f / (R - L),   0.0f,           0.0f,       0.0f },
+            { 0.0f,         2.0f / (T - B),     0.0f,       0.0f },
+            { 0.0f,         0.0f,           0.5f,       0.0f },
+            { (R + L) / (L - R),  (T + B) / (B - T),    0.5f,       1.0f },
+        };
+        ::memcpy(&constant_buffer->mvp, mvp, sizeof(mvp));
+    }
+
+    // Set Viewport. Using the one that keeps getting resized by the resize callback
+    // Perhaps we don't need to update its values here as well.
+    {
+        m_Viewport.Width = drawData->DisplaySize.x;
+        m_Viewport.Height = drawData->DisplaySize.y;
+        m_Viewport.MinDepth = 0.0f;
+        m_Viewport.MaxDepth = 1.0f;
+        m_Viewport.TopLeftX = m_Viewport.TopLeftY = 0.0f;
+
+        DeviceResources->CommandList->RSSetViewports(1, &m_Viewport);
+    }
+    
+    // Create buffer views and bind them
+    {
+        D3D12_VERTEX_BUFFER_VIEW vbv;
+        memset(&vbv, 0, sizeof(D3D12_VERTEX_BUFFER_VIEW));
+        vbv.BufferLocation = m_CurrentFrameResource
+            ->VertexBuffer
+            ->GetGPUVirtualAddress();
+        vbv.SizeInBytes = m_CurrentFrameResource->VertexCount * sizeof(ImDrawVert);
+        vbv.StrideInBytes = sizeof(ImDrawVert);
+        DeviceResources->CommandList->IASetVertexBuffers(0, 1, &vbv);
+        
+        D3D12_INDEX_BUFFER_VIEW ibv;
+        memset(&ibv, 0, sizeof(D3D12_INDEX_BUFFER_VIEW));
+        ibv.BufferLocation = m_CurrentFrameResource
+            ->IndexBuffer
+            ->GetGPUVirtualAddress();
+        ibv.SizeInBytes = m_CurrentFrameResource->IndexCount * sizeof(ImDrawIdx);
+        ibv.Format = sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+        DeviceResources->CommandList->IASetIndexBuffer(&ibv);
+    }
+
+    // Setup render state
+    {
+        DeviceResources->CommandList->SetDescriptorHeaps(1, &srvHeap);
+        DeviceResources->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        DeviceResources->CommandList->SetPipelineState(pipelineState);
+        DeviceResources->CommandList->SetGraphicsRootSignature(rootSignature);
+        DeviceResources->CommandList->SetGraphicsRoot32BitConstants(0, 16, &vertex_constant_buffer, 0);
+        const float blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
+        DeviceResources->CommandList->OMSetBlendFactor(blend_factor);
+    }
+    
+
+    // Render command lists
+    int vtx_offset = 0;
+    int idx_offset = 0;
+    ImVec2 pos = drawData->DisplayPos;
+    for (int n = 0; n < drawData->CmdListsCount; n++)
+    {
+        const ImDrawList* cmd_list = drawData->CmdLists[n];
+        for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
+        {
+            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
+            if (pcmd->UserCallback)
+            {
+                pcmd->UserCallback(cmd_list, pcmd);
+            }
+            else
+            {
+                const D3D12_RECT r = { (LONG)(pcmd->ClipRect.x - pos.x), (LONG)(pcmd->ClipRect.y - pos.y), (LONG)(pcmd->ClipRect.z - pos.x), (LONG)(pcmd->ClipRect.w - pos.y) };
+                DeviceResources->CommandList->SetGraphicsRootDescriptorTable(1, *(D3D12_GPU_DESCRIPTOR_HANDLE*)&pcmd->TextureId);
+                DeviceResources->CommandList->RSSetScissorRects(1, &r);
+                DeviceResources->CommandList->DrawIndexedInstanced(pcmd->ElemCount, 1, idx_offset, vtx_offset, 0);
+            }
+            idx_offset += pcmd->ElemCount;
+        }
+        vtx_offset += cmd_list->VtxBuffer.Size;
+    }
 }
 
 void ImGuiGraphicsContext::NewFrame()
@@ -345,7 +584,7 @@ void ImGuiGraphicsContext::BuildFrameResources()
 
     for (int i = 0; i < count; i++)
     {
-        FrameResources.push_back(std::make_unique<Hazel::D3D12FrameResource>(
+        FrameResources.push_back(std::make_unique<ImGuiD3D12FrameResource>(
             DeviceResources->Device,
             1
             ));

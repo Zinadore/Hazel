@@ -13,6 +13,7 @@ public:
     virtual void RenderDrawData(ImDrawData* drawData) = 0;
     virtual void NewFrame() = 0;
     virtual void UpdateDockedWindows() = 0;
+    virtual void RenderDockedWindows() = 0;
     virtual void Shutdown() = 0;
     virtual void RecreateResources() = 0;
     virtual void InvalidateResources() = 0;

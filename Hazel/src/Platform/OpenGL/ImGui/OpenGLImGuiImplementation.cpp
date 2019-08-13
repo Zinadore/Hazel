@@ -21,8 +21,14 @@ void Hazel::OpenGLImGuiImplementation::Init(Window& window)
 
 void Hazel::OpenGLImGuiImplementation::UpdateDockedWindows()
 {
-    GLFWwindow* backup_current_context = glfwGetCurrentContext();
+    
     ImGui::UpdatePlatformWindows();
+    
+}
+
+void Hazel::OpenGLImGuiImplementation::RenderDockedWindows()
+{
+    GLFWwindow* backup_current_context = glfwGetCurrentContext();
     ImGui::RenderPlatformWindowsDefault();
     glfwMakeContextCurrent(backup_current_context);
 }
@@ -51,3 +57,5 @@ void Hazel::OpenGLImGuiImplementation::RecreateResources()
 void Hazel::OpenGLImGuiImplementation::InvalidateResources()
 {
 }
+
+

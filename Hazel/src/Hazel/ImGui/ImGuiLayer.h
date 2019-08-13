@@ -23,6 +23,8 @@ namespace Hazel {
 
 		void Begin();
 		void End();
+        void UpdateDockedWindows();
+        void RenderDockedWindows();
         void OnResizeBegin();
         void OnResizeEnd();
 	private:
