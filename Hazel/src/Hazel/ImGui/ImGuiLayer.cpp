@@ -6,6 +6,8 @@
 #include "examples/imgui_impl_opengl3.h"
 
 #include "Hazel/Application.h"
+#include "Hazel/Events/Event.h"
+#include "Hazel/Events/ApplicationEvent.h"
 
 // TEMPORARY
 #include <GLFW/glfw3.h>
@@ -57,6 +59,11 @@ namespace Hazel {
 		ImGui_ImplGlfw_Shutdown();
 		ImGui::DestroyContext();
 	}
+
+    void ImGuiLayer::OnEvent(Event& event)
+    {
+        
+    }
 	
 	void ImGuiLayer::Begin()
 	{
