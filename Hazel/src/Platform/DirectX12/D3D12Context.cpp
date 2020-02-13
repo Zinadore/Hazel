@@ -11,12 +11,6 @@
 
 #define NUM_FRAMES 3
 
-enum VendorID: UINT {
-    AMD = 0x1002,
-    NVIDIA = 0x10DE,
-    INTEL = 0x8086
-};
-
 std::string static inline VendorIDToString(VendorID id) {
     switch (id) {
     case AMD:       return "AMD";

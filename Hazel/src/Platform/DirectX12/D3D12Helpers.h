@@ -41,3 +41,9 @@ inline void SetNameIndexed(ID3D12Object*, LPCWSTR, UINT)
 #define NAME_D3D12_OBJECT(x) SetName((x).Get(), L#x)
 #define NAME_D3D12_OBJECT_INDEXED(x, n) SetNameIndexed((x)[n].Get(), L#x, n)
 #define NAME_D3D12_OBJECT_WITH_INDEX(x, n) SetNameIndexed((x).Get(), L#x, n)
+
+enum VendorID : UINT {
+    AMD = 0x1002,
+    NVIDIA = 0x10DE,
+    INTEL = 0x8086
+};
