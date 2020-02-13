@@ -5,7 +5,7 @@
 #include <system_error>
 #include <string>
 
-#include "Hazel/Log.h"
+#include "Hazel/Core/Log.h"
 
 inline void ThrowIfFailed(HRESULT hr)
 {

@@ -11,7 +11,7 @@
 #include "d3dx12.h"
 
 #include "Hazel/Renderer/GraphicsContext.h"
-#include "Hazel/Window.h"
+#include "Hazel/Core/Window.h"
 
 #include "Platform/DirectX12/ComPtr.h"
 

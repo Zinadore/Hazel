@@ -3,7 +3,7 @@
 
 #include "Renderer.h"
 
-#include "Hazel/Application.h"
+#include "Hazel/Core/Application.h"
 
 #include "Platform/OpenGL/OpenGLBuffer.h"
 #include "Platform/DirectX12/D3D12Buffer.h"

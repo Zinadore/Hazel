@@ -4,7 +4,7 @@
 
 #include "Hazel/Renderer/Renderer.h"
 #include "Hazel/Renderer/RendererAPI.h"
-#include "Hazel/Window.h"
+#include "Hazel/Core/Window.h"
 
 #include "Platform/OpenGL/OpenGLContext.h"
 #include "Platform/DirectX12/D3D12Context.h"

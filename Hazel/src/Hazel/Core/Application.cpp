@@ -1,11 +1,11 @@
-#include "hzpch.h"
-#include "Application.h"
+#include <hzpch.h>
+#include <Hazel/Core/Application.h>
 
-#include "Hazel/Log.h"
+#include <Hazel/Core/Log.h>
+#include <Hazel/Core/Input.h>
 
 #include <Hazel/Renderer/Renderer.h>
 #include <Hazel/Renderer/RenderCommand.h>
-#include <Hazel/Input.h>
 
 #include <Platform/DirectX12/D3D12Context.h>
 

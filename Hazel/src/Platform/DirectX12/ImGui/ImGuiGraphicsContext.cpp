@@ -3,7 +3,7 @@
 #include "Platform/DirectX12/D3D12Helpers.h"
 
 #include <string>
-#include "Hazel/Log.h"
+#include "Hazel/Core/Log.h"
 #include "Platform/DirectX12/ComPtr.h"
 
 #define NUM_FRAMES 2
